@@ -1,38 +1,38 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
 """ Detect and follow fiducial tags. """
-import cv2
 import logging
 import math
-import numpy as np
-from PIL import Image
 import signal
 import sys
-from sys import platform
 import threading
 import time
+from sys import platform
 
+import cv2
+import numpy as np
+from PIL import Image
+
+import bosdyn.client
+import bosdyn.client.util
 from bosdyn import geometry
-from bosdyn.api import image_pb2
-from bosdyn.api import geometry_pb2, trajectory_pb2
-from bosdyn.api import world_object_pb2
+from bosdyn.api import geometry_pb2, image_pb2, trajectory_pb2, world_object_pb2
 from bosdyn.api.geometry_pb2 import SE2Velocity, SE2VelocityLimit, Vec2
 from bosdyn.api.spot import robot_command_pb2 as spot_command_pb2
-import bosdyn.client
-from bosdyn.client import create_standard_sdk, RpcError, ResponseError
-from bosdyn.client.frame_helpers import get_a_tform_b, get_vision_tform_body, BODY_FRAME_NAME, VISION_FRAME_NAME
+from bosdyn.client import ResponseError, RpcError, create_standard_sdk
+from bosdyn.client.frame_helpers import (BODY_FRAME_NAME, VISION_FRAME_NAME, get_a_tform_b,
+                                         get_vision_tform_body)
 from bosdyn.client.image import ImageClient, build_image_request
 from bosdyn.client.lease import LeaseClient
 from bosdyn.client.math_helpers import Quat, SE3Pose
 from bosdyn.client.power import PowerClient
-from bosdyn.client.robot_command import RobotCommandClient, RobotCommandBuilder, blocking_stand
-from bosdyn.client.robot_id import RobotIdClient
+from bosdyn.client.robot_command import RobotCommandBuilder, RobotCommandClient, blocking_stand
+from bosdyn.client.robot_id import RobotIdClient, version_tuple
 from bosdyn.client.robot_state import RobotStateClient
-import bosdyn.client.util
 from bosdyn.client.world_object import WorldObjectClient
 
 #pylint: disable=no-member
@@ -42,6 +42,7 @@ LOGGER = logging.getLogger()
 # to a position instead of the center.
 BODY_LENGTH = 1.1
 
+
 class FollowFiducial(object):
     """ Detect and follow a fiducial with Spot."""
 
@@ -49,7 +50,6 @@ class FollowFiducial(object):
         # Robot instance variable.
         self._robot = robot
         self._robot_id = robot.ensure_client(RobotIdClient.default_service_name).get_id(timeout=0.4)
-        self._lease_client = robot.ensure_client(LeaseClient.default_service_name)
         self._power_client = robot.ensure_client(PowerClient.default_service_name)
         self._image_client = robot.ensure_client(ImageClient.default_service_name)
         self._robot_state_client = robot.ensure_client(RobotStateClient.default_service_name)
@@ -75,10 +75,6 @@ class FollowFiducial(object):
         self._movement_on = True  # Let the robot walk towards the fiducial.
         self._limit_speed = options.limit_speed  # Limit the robot's walking speed.
         self._avoid_obstacles = options.avoid_obstacles  # Disable obstacle avoidance.
-
-        # Robot's lease information.
-        self._lease = None
-        self._lease_keepalive = None
 
         # Epsilon distance between robot and desired go-to point.
         self._x_eps = .05
@@ -117,7 +113,7 @@ class FollowFiducial(object):
         # List of all possible camera sources.
         self._source_names = [
             src.name for src in self._image_client.list_image_sources() if
-            (src.image_type == image_pb2.ImageSource.IMAGE_TYPE_VISUAL and "depth" not in src.name)
+            (src.image_type == image_pb2.ImageSource.IMAGE_TYPE_VISUAL and 'depth' not in src.name)
         ]
         print(self._source_names)
 
@@ -154,27 +150,11 @@ class FollowFiducial(object):
     def check_if_version_has_world_objects(self, robot_id):
         """Check that software version contains world object service."""
         # World object service was released in spot-sdk version 1.2.0
-        if (robot_id.software_release.version.major_version >= 1):
-            # Software release 1.0.0 or higher
-            if (robot_id.software_release.version.major_version == 1):
-                if (robot_id.software_release.version.minor_version >= 2):
-                    # Software releases 1.2.0 or higher (which will include the world object service).
-                    return True
-                else:
-                    # Software release before 1.2.0 (which do not include world object service).
-                    return False
-            else:
-                # Software release 2.0.0 or higher (which will include the world object service).
-                return True
-        else:
-            # Software releases 0.X.X (which do not include world object service).
-            return False
+        return version_tuple(robot_id.software_release.version) >= (1, 2, 0)
 
     def start(self):
         """Claim lease of robot and start the fiducial follower."""
-        self._lease = self._lease_client.acquire()
         self._robot.time_sync.wait_for_sync()
-        self._lease_keepalive = bosdyn.client.lease.LeaseKeepAlive(self._lease_client)
 
         # Stand the robot up.
         if self._standup:
@@ -214,7 +194,7 @@ class FollowFiducial(object):
                 # Go to the tag and stop within a certain distance
                 self.go_to_tag(fiducial_rt_world)
             else:
-                print("No fiducials found")
+                print('No fiducials found')
 
             self._attempts += 1  #increment attempts at finding a fiducial
 
@@ -238,14 +218,12 @@ class FollowFiducial(object):
         """Power on the robot."""
         self._robot.power_on()
         self._powered_on = True
-        print("Powered On " + str(self._robot.is_powered_on()))
+        print(f'Powered On {self._robot.is_powered_on()}')
 
     def power_off(self):
         """Power off the robot."""
-        safe_power_off_cmd = RobotCommandBuilder.safe_power_off_command()
-        self._robot_command_client.robot_command(lease=None, command=safe_power_off_cmd)
-        time.sleep(2.5)
-        print("Powered Off " + str(not self._robot.is_powered_on()))
+        self._robot.power_off()
+        print(f'Powered Off {not self._robot.is_powered_on()}')
 
     def image_to_bounding_box(self):
         """Determine which camera source has a fiducial.
@@ -282,11 +260,11 @@ class FollowFiducial(object):
             bboxes = self.detect_fiducial_in_image(image_response[0].shot.image, (width, height),
                                                    source_name)
             if bboxes:
-                print("Found bounding box for " + str(source_name))
+                print(f'Found bounding box for {source_name}')
                 return bboxes, source_name
             else:
                 self._tag_not_located = True
-                print("Failed to find bounding box for " + str(source_name))
+                print(f'Failed to find bounding box for {source_name}')
         return [], None
 
     def detect_fiducial_in_image(self, image, dim, source_name):
@@ -298,7 +276,7 @@ class FollowFiducial(object):
         image_grey = self.rotate_image(image_grey, source_name)
 
         #Make the image greyscale to use bounding box detections
-        detector = apriltag(family="tag36h11")
+        detector = apriltag(family='tag36h11')
         detections = detector.detect(image_grey)
 
         bboxes = []
@@ -472,11 +450,11 @@ class FollowFiducial(object):
     @staticmethod
     def rotate_image(image, source_name):
         """Rotate the image so that it is always displayed upright."""
-        if source_name == "frontleft_fisheye_image":
+        if source_name == 'frontleft_fisheye_image':
             image = cv2.rotate(image, rotateCode=0)
-        elif source_name == "right_fisheye_image":
+        elif source_name == 'right_fisheye_image':
             image = cv2.rotate(image, rotateCode=1)
-        elif source_name == "frontright_fisheye_image":
+        elif source_name == 'frontright_fisheye_image':
             image = cv2.rotate(image, rotateCode=0)
         return image
 
@@ -487,25 +465,6 @@ class FollowFiducial(object):
                                   [ints.skew.y, ints.focal_length.y, ints.principal_point.y],
                                   [0, 0, 1]])
         return camera_matrix
-
-    def stop(self):
-        """Clean shutdown for the Fiducial Follower."""
-        #Power off(safely) the motors if they were turned on
-        if self._powered_on:
-            self.power_off()
-
-        #Stop the lease keep-alive
-        if self._lease_keepalive is not None:
-            if self._lease_keepalive.is_alive():
-                self._lease_keepalive.shutdown()
-            if self._lease:
-                try:
-                    self._lease_client.return_lease(self._lease)
-                except (ResponseError, RpcError) as err:
-                    LOGGER.error("Failed %s: %s", "Return lease", err)
-
-        #Stop time sync
-        self._robot.time_sync.stop()
 
 
 class DisplayImagesAsync(object):
@@ -542,11 +501,11 @@ class DisplayImagesAsync(object):
         """Update the images being displayed to match that seen by the robot."""
         while self._started:
             images = self.get_image()
-            for i in range(len(images)):
-                if images[i].size != 0:
-                    original_height, original_width = images[i].shape[:2]
+            for i, image in enumerate(images):
+                if image.size != 0:
+                    original_height, original_width = image.shape[:2]
                     resized_image = cv2.resize(
-                        images[i], (int(original_width * .5), int(original_height * .5)),
+                        image, (int(original_width * .5), int(original_height * .5)),
                         interpolation=cv2.INTER_NEAREST)
                     cv2.imshow(self._sources[i], resized_image)
                     cv2.moveWindow(self._sources[i],
@@ -588,16 +547,16 @@ def main():
 
     parser = argparse.ArgumentParser()
     bosdyn.client.util.add_base_arguments(parser)
-    parser.add_argument("--distance-margin", default=.5,
-                        help="Distance [meters] that the robot should stop from the fiducial.")
-    parser.add_argument("--limit-speed", default=True, type=lambda x: (str(x).lower() == 'true'),
-                        help="If the robot should limit its maximum speed.")
-    parser.add_argument("--avoid-obstacles", default=False, type=lambda x:
+    parser.add_argument('--distance-margin', default=.5,
+                        help='Distance [meters] that the robot should stop from the fiducial.')
+    parser.add_argument('--limit-speed', default=True, type=lambda x: (str(x).lower() == 'true'),
+                        help='If the robot should limit its maximum speed.')
+    parser.add_argument('--avoid-obstacles', default=False, type=lambda x:
                         (str(x).lower() == 'true'),
-                        help="If the robot should have obstacle avoidance enabled.")
+                        help='If the robot should have obstacle avoidance enabled.')
     parser.add_argument(
-        "--use-world-objects", default=True, type=lambda x: (str(x).lower() == 'true'),
-        help="If fiducials should be from the world object service or the apriltag library.")
+        '--use-world-objects', default=True, type=lambda x: (str(x).lower() == 'true'),
+        help='If fiducials should be from the world object service or the apriltag library.')
     options = parser.parse_args()
 
     # If requested, attempt import of Apriltag library
@@ -606,7 +565,7 @@ def main():
             global apriltag
             from apriltag import apriltag
         except ImportError as e:
-            print("Could not import the AprilTag library. Aborting. Exception: ", str(e))
+            print(f'Could not import the AprilTag library. Aborting. Exception: {e}')
             return False
 
     # Create robot object.
@@ -621,29 +580,30 @@ def main():
             robot.start_time_sync()
 
             # Verify the robot is not estopped.
-            assert not robot.is_estopped(), "Robot is estopped. " \
-                                            "Please use an external E-Stop client, " \
-                                            "such as the estop SDK example, to configure E-Stop."
+            assert not robot.is_estopped(), 'Robot is estopped. ' \
+                                            'Please use an external E-Stop client, ' \
+                                            'such as the estop SDK example, to configure E-Stop.'
 
             fiducial_follower = FollowFiducial(robot, options)
             time.sleep(.1)
-            if not options.use_world_objects and str.lower(sys.platform) != "darwin":
+            if not options.use_world_objects and str.lower(sys.platform) != 'darwin':
                 # Display the detected bounding boxes on the images when using the april tag library.
                 # This is disabled for MacOS-X operating systems.
                 image_viewer = DisplayImagesAsync(fiducial_follower)
                 image_viewer.start()
-            fiducial_follower.start()
+            lease_client = robot.ensure_client(LeaseClient.default_service_name)
+            with bosdyn.client.lease.LeaseKeepAlive(lease_client, must_acquire=True,
+                                                    return_at_exit=True):
+                fiducial_follower.start()
     except RpcError as err:
-        LOGGER.error("Failed to communicate with robot: %s", err)
+        LOGGER.error('Failed to communicate with robot: %s', err)
     finally:
         if image_viewer is not None:
             image_viewer.stop()
-        if fiducial_follower is not None:
-            fiducial_follower.stop()
 
     return False
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if not main():
         sys.exit(1)

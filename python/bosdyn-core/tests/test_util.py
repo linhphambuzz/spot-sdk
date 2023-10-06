@@ -1,12 +1,13 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
 """Tests for bosdyn.util"""
-from bosdyn import util
 from google.protobuf.timestamp_pb2 import Timestamp
+
+from bosdyn import util
 
 
 def test_time_converter():

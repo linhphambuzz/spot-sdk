@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 
 Downloading, reproducing, distributing or otherwise using the SDK Software
 is subject to the terms and conditions of the Boston Dynamics Software
@@ -24,10 +24,12 @@ The Autowalk feature is an implementation of the autonomous navigation API. Howe
 * [Autonomous navigation services](autonomous_navigation_services.md)
 * [GraphNav service](graphnav_service.md)
 * [GraphNav map structure](graphnav_map_structure.md)
+* [GraphNav area callbacks](graphnav_area_callbacks.md)
 * [Initialization](initialization.md)
 * [Localization](localization.md)
 * [GraphNav and robot locomotion](graphnav_and_robot_locomotion.md)
 * [Missions service](missions_service.md)
+* [Autowalk service](autowalk_service.md)
 * [Network compute bridge](../network_compute_bridge.md)
 * [AutoReturn service](auto_return.md)
 * [Directed Exploration](directed_exploration.md)

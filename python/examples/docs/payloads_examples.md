@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 
 Downloading, reproducing, distributing or otherwise using the SDK Software
 is subject to the terms and conditions of the Boston Dynamics Software
@@ -12,7 +12,8 @@ The following examples show how to register a payload and create payload faults,
 
 ## Contents
 
-* [Payloads](../payloads/README.md)
-* [Self Registration](../self_registration/README.md)
-* [Faults](../service_faults/README.md)
-* [Velodyne](../velodyne_client/README.md)
+- [Payloads](../payloads/README.md)
+- [Self Registration](../self_registration/README.md)
+- [Faults](../service_faults/README.md)
+- [Velodyne](../velodyne_client/README.md)
+- [CORE I/O GPIO](../core_io_gpio/README.md)

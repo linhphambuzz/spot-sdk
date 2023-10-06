@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -6,13 +6,14 @@
 
 """Unit tests for the token_manager module."""
 import datetime
-import pytest
 import time
+
+import pytest
 
 from bosdyn.client.auth import InvalidTokenError
 from bosdyn.client.exceptions import Error, RpcError
 from bosdyn.client.token_manager import TokenManager, WriteFailedError
-from bosdyn.client.util import cli_login_prompt, cli_auth
+from bosdyn.client.util import cli_auth, cli_login_prompt
 
 
 class MockRobot:
@@ -95,14 +96,18 @@ def test_token_refresh_write_error():
     assert tm.is_alive()
     tm.stop()
 
+
 def _patch(value):
+
     def patched(*args, **kwargs):
         return value
+
     return patched
+
 
 def test_cli_login(monkeypatch):
     real_login = ('user', 'password')
-    monkeypatch.setattr('six.moves.input', _patch(real_login[0]))
+    monkeypatch.setattr('builtins.input', _patch(real_login[0]))
     monkeypatch.setattr('getpass.getpass', _patch(real_login[1]))
     login = cli_login_prompt()
     assert login == real_login
@@ -110,7 +115,7 @@ def test_cli_login(monkeypatch):
 
 def test_cli_login_with_username(monkeypatch):
     real_login = ('bad_user', 'bad_password')
-    monkeypatch.setattr('six.moves.input', _patch(real_login[0]))
+    monkeypatch.setattr('builtins.input', _patch(real_login[0]))
     monkeypatch.setattr('getpass.getpass', _patch(real_login[1]))
     login = cli_login_prompt('mock-user')
     assert login == real_login
@@ -119,7 +124,7 @@ def test_cli_login_with_username(monkeypatch):
 def test_cli_authentication(monkeypatch):
     robot = MockRobot(token='mock-token-default')
 
-    monkeypatch.setattr('six.moves.input', _patch('user'))
+    monkeypatch.setattr('builtins.input', _patch('user'))
     monkeypatch.setattr('getpass.getpass', _patch('password'))
     cli_auth(robot)
 

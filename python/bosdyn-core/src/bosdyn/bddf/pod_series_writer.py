@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -8,7 +8,7 @@
 import struct
 
 from .bosdyn import MessageChannel
-from .common import DataFormatError, POD_TYPE_TO_NUM_BYTES, POD_TYPE_TO_STRUCT
+from .common import POD_TYPE_TO_NUM_BYTES, POD_TYPE_TO_STRUCT, DataFormatError
 
 
 class PodSeriesWriter:  # pylint: disable=too-many-instance-attributes

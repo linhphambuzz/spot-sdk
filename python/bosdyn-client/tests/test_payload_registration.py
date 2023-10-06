@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -6,11 +6,10 @@
 
 """Tests for the payload registration client."""
 
-from bosdyn.client import InternalServerError, UnsetStatusError
-from bosdyn.client.payload_registration import (_payload_registration_error,
-                                                PayloadAlreadyExistsError)
-
 import bosdyn.api.payload_registration_pb2 as payload_registration_protos
+from bosdyn.client import InternalServerError, UnsetStatusError
+from bosdyn.client.payload_registration import (PayloadAlreadyExistsError,
+                                                _payload_registration_error)
 
 
 def test_payload_registration_error():

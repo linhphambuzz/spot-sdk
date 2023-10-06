@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -7,15 +7,14 @@
 """
 Code for attaching and detaching a payload via the payload service API
 """
-from __future__ import print_function
 import argparse
-import sys
 import logging
+import sys
 
 import bosdyn.client
+import bosdyn.client.util
 from bosdyn.client.payload import PayloadClient
 from bosdyn.client.payload_registration import PayloadRegistrationClient
-import bosdyn.client.util
 
 LOGGER = logging.getLogger()
 

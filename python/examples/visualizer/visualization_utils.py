@@ -1,18 +1,20 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
-from vtk.util import numpy_support
-import google.protobuf.timestamp_pb2
 import math
-import numpy as np
-import numpy.linalg
 import os
 import sys
 import time
+
+import google.protobuf.timestamp_pb2
+import numpy as np
+import numpy.linalg
 import vtk
+from vtk.util import numpy_support
+
 from bosdyn.client.math_helpers import SE3Pose
 
 
@@ -98,7 +100,7 @@ def make_spot_vtk_hexahedron():
 
 def se3pose_proto_to_vtk_tf(se3_pose):
     """Converts an SE3Pose proto into a vtk transform object."""
-    pose_obj = SE3Pose.from_obj(se3_pose)
+    pose_obj = SE3Pose.from_proto(se3_pose)
     pose_mat = pose_obj.to_matrix()
     tf = vtk.vtkTransform()
     tf.SetMatrix(pose_mat.flatten())

@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -42,12 +42,10 @@ However, the data_collect_fn function should update the status to STATUS_SAVING 
 storing the data.
 """
 
-from __future__ import print_function
-
-import logging
-import time
-import threading
 import concurrent.futures
+import logging
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from bosdyn.api import data_acquisition_pb2, data_acquisition_plugin_service_pb2_grpc, header_pb2
@@ -56,6 +54,7 @@ from bosdyn.client import Robot
 from bosdyn.client.data_acquisition_store import DataAcquisitionStoreClient
 from bosdyn.client.data_buffer import DataBufferClient
 from bosdyn.client.server_util import ResponseContext, populate_response_header
+from bosdyn.client.service_customization_helpers import create_value_validator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -308,6 +307,10 @@ class DataAcquisitionPluginService(
         super(DataAcquisitionPluginService, self).__init__()
         self.logger = logger or _LOGGER
         self.capabilities = capabilities
+        self.value_validators = {
+            capture.name: create_value_validator(capture.custom_params)
+            for capture in self.capabilities
+        }
         self.data_collect_fn = data_collect_fn
         self.acquire_response_fn = acquire_response_fn
         self.request_manager = RequestManager()
@@ -315,6 +318,20 @@ class DataAcquisitionPluginService(
         self.robot = robot
         self.store_client = robot.ensure_client(DataAcquisitionStoreClient.default_service_name)
         self.data_buffer_client = robot.ensure_client(DataBufferClient.default_service_name)
+
+    def validate_params(self, request, response):
+        """Validate that any parameters set in the request are valid according the the spec."""
+        for capture in request.acquisition_requests.data_captures:
+            try:
+                error = self.value_validators[capture.name](capture.custom_params)
+                if error is not None:
+                    response.custom_param_error.CopyFrom(error)
+                    response.status = response.STATUS_CUSTOM_PARAMS_ERROR
+                    return False
+            except KeyError:
+                response.status = response.STATUS_UNKNOWN_CAPTURE_TYPE
+                return False
+        return True
 
     def _data_collection_wrapper(self, request_id, request, state):
         """Helper function which initiates the data collection and storage in sequence.
@@ -369,6 +386,9 @@ class DataAcquisitionPluginService(
         Returns:
             Mutates the AcquirePluginDataResponse proto and also returns it.
         """
+        if not self.validate_params(request, response):
+            return response
+
         if self.acquire_response_fn is not None:
             try:
                 if not self.acquire_response_fn(request, response):
@@ -376,13 +396,13 @@ class DataAcquisitionPluginService(
             except Exception as e:
                 self.logger.exception('Failed during call to user acquire response function')
                 populate_response_header(response, request,
-                                        error_code=header_pb2.CommonError.CODE_INTERNAL_ERROR,
-                                        error_msg=str(e))
+                                         error_code=header_pb2.CommonError.CODE_INTERNAL_ERROR,
+                                         error_msg=str(e))
                 return response
         self.request_manager.cleanup_requests()
         response.request_id, state = self.request_manager.add_request()
         self.logger.info('Beginning request %d for %s', response.request_id,
-                        [capture.name for capture in request.acquisition_requests.data_captures])
+                         [capture.name for capture in request.acquisition_requests.data_captures])
         self.executor.submit(self._data_collection_wrapper, response.request_id, request, state)
         response.status = data_acquisition_pb2.AcquireDataResponse.STATUS_OK
         populate_response_header(response, request)

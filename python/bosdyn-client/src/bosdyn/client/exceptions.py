@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -36,6 +36,10 @@ class InvalidRequestError(ResponseError):
 class LeaseUseError(ResponseError):
     """Request was rejected due to using an invalid lease."""
 
+    def __init__(self, response, lease_use_result):
+        super().__init__(response)
+        self.lease_use_result = lease_use_result
+
 
 class LicenseError(ResponseError):
     """Request was rejected due to using an invalid license."""
@@ -62,8 +66,7 @@ class RpcError(Error):
         self.error_message = error_message or str(original_error)
 
     def __str__(self):
-        full_classname = self.error.__class__.__name__
-        return '{}: {}'.format(full_classname, self.error_message)
+        return '{}: {}'.format(self.__class__.__name__, self.error_message)
 
 
 class RetryableRpcError(RpcError):
@@ -148,3 +151,20 @@ class TransientFailureError(RetryableRpcError):
 
 class TimeSyncRequired(Error):
     """Time synchronization is required but none seems to be established."""
+
+
+class CustomParamError(ResponseError):
+    """A custom parameter that was provided did not match the specification"""
+
+    def __init__(self, response, custom_param_error):
+        super().__init__(response)
+        self.custom_param_error = custom_param_error
+
+    def __str__(self):
+        if self.response is not None:
+            full_classname = self.response.DESCRIPTOR.full_name
+        else:
+            full_classname = "Error"
+        return '{} ({}): Parameter Errors\n{}'.format(
+            full_classname, self.__class__.__name__,
+            '\n'.join(self.custom_param_error.error_messages))

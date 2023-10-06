@@ -1,29 +1,27 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
-
-from __future__ import print_function
 
 import logging
 import signal
 import threading
 import time
 
+from sbp.client import Framer, Handler
+from sbp.client.drivers.pyserial_driver import PySerialDriver
+from sbp.navigation import SBP_MSG_POS_LLH, SBP_MSG_POS_LLH_DEP_A
+
+import bosdyn.client.util
 from bosdyn.api import data_acquisition_pb2, data_acquisition_plugin_service_pb2_grpc
+from bosdyn.client.data_acquisition_plugin_service import (Capability, DataAcquisitionPluginService,
+                                                           RequestState)
 from bosdyn.client.data_acquisition_store import DataAcquisitionStoreClient
-from bosdyn.client.data_acquisition_plugin_service import (Capability, RequestState,
-                                                           DataAcquisitionPluginService)
 from bosdyn.client.directory_registration import (DirectoryRegistrationClient,
                                                   DirectoryRegistrationKeepAlive)
-from sbp.client.drivers.pyserial_driver import PySerialDriver
-import bosdyn.client.util
-from bosdyn.client.util import setup_logging
 from bosdyn.client.server_util import GrpcServiceRunner
-
-from sbp.client import Handler, Framer
-from sbp.navigation import SBP_MSG_POS_LLH_DEP_A, SBP_MSG_POS_LLH
+from bosdyn.client.util import setup_logging
 
 DIRECTORY_NAME = 'data-acquisition-piksi-metadata-plugin'
 AUTHORITY = 'data-acquisition-piksi-metadata-plugin'
@@ -76,11 +74,11 @@ class GPS_Adapter:
         message = data_acquisition_pb2.AssociatedMetadata()
         message.reference_id.action_id.CopyFrom(request.action_id)
         message.metadata.data.update({
-            "latitude": data.lat,
-            "longitude": data.lon,
-            "altitude": data.alt,
+            'latitude': data.lat,
+            'longitude': data.lon,
+            'altitude': data.alt,
         })
-        _LOGGER.info("Retrieving GPS data: {}".format(message.metadata.data))
+        _LOGGER.info('Retrieving GPS data: %s', message.metadata.data)
 
         # Store the data and manage store state.
         store_helper.store_metadata(message, data_id)
@@ -115,7 +113,7 @@ if __name__ == '__main__':
     setup_logging(options.verbose)
 
     # Create and authenticate a bosdyn robot object.
-    sdk = bosdyn.client.create_standard_sdk("PiksiMetadataPluginServiceSDK")
+    sdk = bosdyn.client.create_standard_sdk('PiksiMetadataPluginServiceSDK')
     robot = sdk.create_robot(options.hostname)
     robot.authenticate_from_payload_credentials(*bosdyn.client.util.get_guid_and_secret(options))
 

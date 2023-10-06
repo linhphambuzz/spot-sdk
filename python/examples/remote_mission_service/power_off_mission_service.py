@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -11,19 +11,18 @@ import random
 import string
 import threading
 
-from bosdyn.api import header_pb2, robot_command_pb2, basic_command_pb2
-from bosdyn.api.mission import remote_service_pb2_grpc, remote_pb2
-
 import bosdyn.client
 import bosdyn.client.util
+from bosdyn.api import basic_command_pb2, header_pb2, robot_command_pb2
+from bosdyn.api.mission import remote_pb2, remote_service_pb2_grpc
 from bosdyn.client import time_sync
+from bosdyn.client.auth import AuthResponseError
 from bosdyn.client.directory_registration import (DirectoryRegistrationClient,
                                                   DirectoryRegistrationKeepAlive)
-from bosdyn.client.lease import LeaseClient, Lease
-from bosdyn.client.robot_command import RobotCommandClient, RobotCommandBuilder
-from bosdyn.client.auth import AuthResponseError
+from bosdyn.client.lease import Lease, LeaseClient
+from bosdyn.client.robot_command import RobotCommandBuilder, RobotCommandClient
+from bosdyn.client.server_util import GrpcServiceRunner, ResponseContext
 from bosdyn.client.util import setup_logging
-from bosdyn.client.server_util import ResponseContext, GrpcServiceRunner
 from bosdyn.mission import util
 
 DIRECTORY_NAME = 'power-off-callback'
@@ -182,8 +181,7 @@ class PowerOffServicer(remote_service_pb2_grpc.RemoteMissionServiceServicer):
                         self.sessions_by_id[session_id] = (command_future, None)
                     else:
                         response.status = remote_pb2.TickResponse.STATUS_FAILURE
-                        response.error_message = 'Unexpected feedback status "{}"!'.format(
-                            safe_off_status_codes.Status.Name(status))
+                        response.error_message = f'Unexpected feedback status "{safe_off_status_codes.Status.Name(status)}"!'
                 else:
                     response.status = remote_pb2.TickResponse.STATUS_FAILURE
                     response.error_message = cmd_status_codes.Status.Name(command_response.status)
@@ -207,8 +205,7 @@ class PowerOffServicer(remote_service_pb2_grpc.RemoteMissionServiceServicer):
 
         # Provided more than one lease for the resource!
         response.header.error.code = header_pb2.CommonError.CODE_INVALID_REQUEST
-        response.header.error.message = '{} leases on resource {}'.format(
-            len(matching_leases), self.RESOURCE)
+        response.header.error.message = f'{len(matching_leases)} leases on resource {self.RESOURCE}'
         return None
 
     def EstablishSession(self, request, context):
@@ -321,7 +318,7 @@ if __name__ == '__main__':
     setup_logging(options.verbose)
 
     # Create and authenticate a bosdyn robot object.
-    sdk = bosdyn.client.create_standard_sdk("PowerOffMissionServiceSDK")
+    sdk = bosdyn.client.create_standard_sdk('PowerOffMissionServiceSDK')
     robot = sdk.create_robot(options.hostname)
     bosdyn.client.util.authenticate(robot)
 

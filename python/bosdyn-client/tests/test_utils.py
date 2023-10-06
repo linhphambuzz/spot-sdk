@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -6,11 +6,13 @@
 
 """Unit tests for the server_utils module."""
 import datetime
-import pytest
 import time
+
+import pytest
+
 from bosdyn.api import data_acquisition_store_pb2 as daq_store
 from bosdyn.api import local_grid_pb2 as grid
-from bosdyn.client.server_util import strip_large_bytes_fields, populate_response_header
+from bosdyn.client.server_util import populate_response_header, strip_large_bytes_fields
 
 
 def test_strip_large_bytes():

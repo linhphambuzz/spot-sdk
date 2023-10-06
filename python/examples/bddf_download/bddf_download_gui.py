@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -6,24 +6,23 @@
 
 """pyqt wrapper for bddf_download.py"""
 
-import sys
-import os
 import argparse
 import datetime
-import platform
 import logging
+import os
+import platform
 import signal
 import subprocess
+import sys
 
-from PyQt5 import QtCore, QtWidgets
-from PyQt5 import uic
+from bddf_download import collect_and_write_file, prepare_download
+from PyQt5 import QtCore, QtWidgets, uic
 
-from bddf_download import prepare_download, collect_and_write_file
 import bosdyn.client
-from bosdyn.util import duration_str
-from bosdyn.client.time_sync import TimeSyncClient, TimeSyncEndpoint
-from bosdyn.client.data_service import DataServiceClient
 from bosdyn.api.data_index_pb2 import EventsCommentsSpec
+from bosdyn.client.data_service import DataServiceClient
+from bosdyn.client.time_sync import TimeSyncClient, TimeSyncEndpoint
+from bosdyn.util import duration_str
 
 # Use for PyInstaller Executable.
 QTCREATORFILE = 'download.ui'
@@ -36,8 +35,8 @@ logging.basicConfig(level=logging.INFO)
 
 DEFAULT_STATUS_BAR_TIMEOUT = 3000  # ms
 DATETIME_FORMAT = 'yyyyMMdd_hhmmss'
-ORGANIZATION = "Boston Dynamics"
-APPLICATION_NAME = "BDDF Download"
+ORGANIZATION = 'Boston Dynamics'
+APPLICATION_NAME = 'BDDF Download'
 
 
 def simple_ping(hostname):
@@ -50,10 +49,10 @@ def simple_ping(hostname):
         exit_code (int) return status from the ping request
     """
     current_os = platform.system().lower()
-    if current_os == "windows":
-        parameter = "-n"
+    if current_os == 'windows':
+        parameter = '-n'
     else:
-        parameter = "-c"
+        parameter = '-c'
     exit_code = subprocess.call(['ping', parameter, '1', '-w', '2', hostname],
                                 stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
     return exit_code
@@ -172,7 +171,7 @@ class BDDFDownloadGui(QtWidgets.QMainWindow):
         if robot is not False:
             endpoint = TimeSyncEndpoint(robot.ensure_client(TimeSyncClient.default_service_name))
             if not endpoint.establish_timesync(break_on_success=False):
-                logging.debug("Failed to achieve time sync.")
+                logging.debug('Failed to achieve time sync.')
                 return False
             return endpoint.clock_skew
 
@@ -206,8 +205,8 @@ class BDDFDownloadGui(QtWidgets.QMainWindow):
     def save_as(self):
         """Use file browser to specify output filepath and filename."""
         output = self.get_output()
-        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Save As", output,
-                                                             "BDDF Files (*.bddf)")
+        file_name, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Save As', output,
+                                                             'BDDF Files (*.bddf)')
         output_filepath, output_filename = os.path.split(file_name)
         self.le_output_filepath.setText(output_filepath)
         self.le_output_filename.setText(output_filename)
@@ -228,7 +227,7 @@ class BDDFDownloadGui(QtWidgets.QMainWindow):
         else:
             output_filename = f'{output_filename}{file_extension}'
 
-        output_filename = output_filename.replace(" ", "_")
+        output_filename = output_filename.replace(' ', '_')
         total_filepath = os.path.join(output_filepath, output_filename)
 
         return total_filepath
@@ -269,9 +268,9 @@ class BDDFDownloadGui(QtWidgets.QMainWindow):
         if raise_filesize_limit_flag is True:
             self.statusBar().showMessage(f'File size to large. Do not exceed 60 minutes.',
                                          DEFAULT_STATUS_BAR_TIMEOUT)
-            self.statusBar().setStyleSheet("background-color : red")
+            self.statusBar().setStyleSheet('background-color : red')
         else:
-            self.statusBar().setStyleSheet("")
+            self.statusBar().setStyleSheet('')
 
         return timespan
 
@@ -327,7 +326,7 @@ class BDDFDownloadGui(QtWidgets.QMainWindow):
                         f'Download progress: {number_of_bytes_processed/1e6:.2f} [MB] of {total_size_of_request/1e6:.2f} [MB]'
                     )
                     percentage_compete = (number_of_bytes_processed / total_size_of_request) * 100
-                    download_percentage_string = f"Download is {percentage_compete:.2f}% complete."
+                    download_percentage_string = f'Download is {percentage_compete:.2f}% complete.'
                     logging.debug(download_percentage_string)
                     self.pb.setValue(percentage_compete)
                 # Hack to get the label_filesize to update quickly.

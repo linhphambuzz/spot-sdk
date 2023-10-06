@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -8,12 +8,10 @@
 
 """
 
-from __future__ import print_function
-
-from bosdyn.client.exceptions import Error
-from bosdyn.client.common import BaseClient, common_header_errors
 import bosdyn.api.data_index_pb2 as data_index_protos
 import bosdyn.api.data_service_pb2_grpc as data_service
+from bosdyn.client.common import BaseClient, common_header_errors
+from bosdyn.client.exceptions import Error
 
 
 class InvalidArgument(Error):

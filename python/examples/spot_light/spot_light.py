@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -28,14 +28,11 @@ simple_pid
 
 import sys
 
+from MySpot import MySpot
+from StateMachine import StateMachine, StateMachineFollow, StateMachineSit, StateMachineStand
+
 import bosdyn.client
 import bosdyn.client.util
-
-from MySpot import MySpot
-from StateMachine import StateMachine
-from StateMachine import StateMachineSit
-from StateMachine import StateMachineStand
-from StateMachine import StateMachineFollow
 
 #===================================================================================================
 # Local Helpers
@@ -88,12 +85,12 @@ def main(argv):
                 state.exe()
 
     except Exception as exc:
-        print("Spot threw an exception: {}".format(exc))
+        print(f'Spot threw an exception: {exc}')
         return False
     except KeyboardInterrupt:
         pass
 
-    print("Done!!")
+    print('Done!!')
 
 
 if __name__ == '__main__':

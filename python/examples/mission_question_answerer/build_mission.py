@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -12,10 +12,10 @@ To answer the question posed by the Prompt, run "mission_question_answerer.py".
 
 import argparse
 
-from bosdyn.api.mission import nodes_pb2, util_pb2
-
 # Import from this directory.
 import mission_question_answerer
+
+from bosdyn.api.mission import nodes_pb2, util_pb2
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

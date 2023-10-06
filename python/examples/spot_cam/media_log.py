@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -11,14 +11,12 @@ import tempfile
 import cv2
 import numpy as np
 from PIL import Image
-
-from bosdyn.client.command_line import (Command, Subcommands)
-
-from bosdyn.client.spot_cam.media_log import MediaLogClient
-from bosdyn.api import image_pb2
-from bosdyn.api.spot_cam import logging_pb2, camera_pb2
-
 from utils import add_bool_arg
+
+from bosdyn.api import image_pb2
+from bosdyn.api.spot_cam import camera_pb2, logging_pb2
+from bosdyn.client.command_line import Command, Subcommands
+from bosdyn.client.spot_cam.media_log import MediaLogClient
 
 
 def write_pgm(filename, width, height, max_val, data):
@@ -77,7 +75,7 @@ class MediaLogDeleteAllCommand(Command):
     def _run(self, robot, options):
         client = robot.ensure_client(MediaLogClient.default_service_name)
         for logpoint in client.list_logpoints():
-            print('Deleting {}...'.format(logpoint.name))
+            print(f'Deleting {logpoint.name}...')
             client.delete(logpoint)
         print('All logpoints deleted.')
 
@@ -156,7 +154,7 @@ class MediaLogRetrieveCommand(Command):
         self._parser.add_argument('--dst', default=None, help='Filename of saved image')
         add_bool_arg(self._parser, 'save-as-rgb24', default=False)
         add_bool_arg(self._parser, 'stitching', default=True)
-        add_bool_arg(self._parser, "raw-ir", default=False)
+        add_bool_arg(self._parser, 'raw-ir', default=False)
 
     def _run(self, robot, options):
         lp = logging_pb2.Logpoint(name=options.name)
@@ -187,12 +185,11 @@ class MediaLogRetrieveCommand(Command):
             dst_filename = os.path.basename(src_filename)
 
         # Pano and IR both come in as JPEG from retrieve command
-        if lp.image_params.height == 4800 or lp.image_params.height == 2400 or (lp.image_params.width == 640 and
-                                              lp.image_params.height == 512):
-            shutil.move(src_filename, '{}.jpg'.format(dst_filename))
+        if lp.image_params.height == 4800 or lp.image_params.height == 2400 or (
+                lp.image_params.width == 640 and lp.image_params.height == 512):
+            shutil.move(src_filename, f'{dst_filename}.jpg')
         else:
-            target_filename = '{}-{}x{}.rgb24'.format(dst_filename, lp.image_params.width,
-                                                      lp.image_params.height)
+            target_filename = f'{dst_filename}-{lp.image_params.width}x{lp.image_params.height}.rgb24'
             shutil.move(src_filename, target_filename)
 
             if not options.save_as_rgb24:
@@ -202,7 +199,7 @@ class MediaLogRetrieveCommand(Command):
                 mode = 'RGB'
                 image = Image.frombuffer(mode, (lp.image_params.width, lp.image_params.height),
                                          data, 'raw', mode, 0, 1)
-                image.save('{}.jpg'.format(dst_filename))
+                image.save(f'{dst_filename}.jpg')
 
                 os.remove(target_filename)
 

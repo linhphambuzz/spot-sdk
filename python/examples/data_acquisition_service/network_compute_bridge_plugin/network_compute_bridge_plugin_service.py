@@ -1,43 +1,42 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
-from __future__ import print_function
-
 import logging
 import time
+
 import google.protobuf.json_format as json_format
 
-from bosdyn.api import data_acquisition_pb2
-from bosdyn.api import data_acquisition_plugin_service_pb2_grpc
-from bosdyn.api import network_compute_bridge_pb2
-from bosdyn.api import world_object_pb2
+import bosdyn.client.util
+from bosdyn.api import (data_acquisition_pb2, data_acquisition_plugin_service_pb2_grpc,
+                        network_compute_bridge_pb2, world_object_pb2)
 from bosdyn.client.data_acquisition import DataAcquisitionClient
 from bosdyn.client.data_acquisition_plugin_service import (Capability, DataAcquisitionPluginService,
-                                                           make_error, RequestCancelledError)
+                                                           RequestCancelledError, make_error)
 from bosdyn.client.directory_registration import (DirectoryRegistrationClient,
                                                   DirectoryRegistrationKeepAlive)
-from bosdyn.client.network_compute_bridge_client import (NetworkComputeBridgeClient,
+from bosdyn.client.network_compute_bridge_client import (ExternalServerError,
                                                          ExternalServiceNotFoundError,
-                                                         ExternalServerError)
-import bosdyn.client.util
-from bosdyn.client.util import setup_logging, GrpcServiceRunner
-# from bosdyn.client.server_util import
+                                                         NetworkComputeBridgeClient)
+from bosdyn.client.server_util import GrpcServiceRunner
+from bosdyn.client.util import setup_logging
 
+# from bosdyn.client.server_util import
 
 AUTHORITY = 'data-acquisition-ncb-plugin'
 
 _LOGGER = logging.getLogger(__name__)
 
-kCapabilityImage = "image"
-kCapabilityObjectInImage = "object_in_image"
+kCapabilityImage = 'image'
+kCapabilityObjectInImage = 'object_in_image'
 kCapabilityNames = [kCapabilityImage, kCapabilityObjectInImage]
 
+
 def get_directory_name(network_compute_bridge_worker_name):
-    return '{}-{}-plugin'.format(
-        DataAcquisitionClient.default_service_name, network_compute_bridge_worker_name)
+    return f'{DataAcquisitionClient.default_service_name}-{network_compute_bridge_worker_name}-plugin'
+
 
 class NetworkComputeBrideAdapter:
     """Provide access to the latest data from a network compute bridge worker.
@@ -48,7 +47,8 @@ class NetworkComputeBrideAdapter:
     """
 
     def __init__(self, robot, network_compute_bridge_worker_name):
-        self._network_compute_bridge_client = robot.ensure_client(NetworkComputeBridgeClient.default_service_name)
+        self._network_compute_bridge_client = robot.ensure_client(
+            NetworkComputeBridgeClient.default_service_name)
         self._worker_name = network_compute_bridge_worker_name
 
     def get_capabilities(self):
@@ -65,18 +65,19 @@ class NetworkComputeBrideAdapter:
                     service_name=self._worker_name)
                 list_req = network_compute_bridge_pb2.ListAvailableModelsRequest(
                     server_config=server_data)
-                response = self._network_compute_bridge_client.list_available_models_command(list_req)
+                response = self._network_compute_bridge_client.list_available_models_command(
+                    list_req)
                 break
             except (ExternalServiceNotFoundError, ExternalServerError):
                 _LOGGER.exception('Network compute bridge worker is still unavailable:\n')
                 time.sleep(2)
         if response.header.error.message:
-            _LOGGER.error("List available models from %s returned with error: %s",
+            _LOGGER.error('List available models from %s returned with error: %s',
                           self._worker_name, response.header.error.message)
         else:
             _LOGGER.info('Available models from %s:', self._worker_name)
-            for model in response.available_models:
-                _LOGGER.info('   %s', model)
+            for model in response.models.data:
+                _LOGGER.info('   %s', model.model_name)
 
         # Compose the list of data capture options.
         capabilities = []
@@ -84,9 +85,8 @@ class NetworkComputeBrideAdapter:
         for name in kCapabilityNames:
             _LOGGER.info('   %s', name)
             capabilities.append(
-                Capability(name=name,
-                           description="Processed {} from {}.".format(name, self._worker_name),
-                           channel_name="{}--{}".format(self._worker_name, name)))
+                Capability(name=name, description=f'Processed {name} from {self._worker_name}.',
+                           channel_name=f'{self._worker_name}--{name}'))
 
         return capabilities
 
@@ -100,8 +100,8 @@ class NetworkComputeBrideAdapter:
         """
 
         try:
-            _LOGGER.info("Requesting data from %s...", self._worker_name)
-            network_compute_bridge_metadata = request.metadata.data["network_compute_bridge"]
+            _LOGGER.info('Requesting data from %s...', self._worker_name)
+            network_compute_bridge_metadata = request.metadata.data['network_compute_bridge']
             response = self._request_data(request, network_compute_bridge_metadata, store_helper)
 
             for capture in request.acquisition_requests.data_captures:
@@ -109,13 +109,14 @@ class NetworkComputeBrideAdapter:
 
                 if capture.name == kCapabilityImage:
                     store_helper.cancel_check()
-                    _LOGGER.info("Storing image with data id %s...", data_id)
-                    store_helper.state.set_status(data_acquisition_pb2.GetStatusResponse.STATUS_SAVING)
+                    _LOGGER.info('Storing image with data id %s...', data_id)
+                    store_helper.state.set_status(
+                        data_acquisition_pb2.GetStatusResponse.STATUS_SAVING)
                     store_helper.store_image(response.image_response.shot, data_id)
 
                 elif capture.name == kCapabilityObjectInImage:
                     store_helper.cancel_check()
-                    _LOGGER.info("Storing detection info with data id %s...", data_id)
+                    _LOGGER.info('Storing detection info with data id %s...', data_id)
 
                     detection_info = world_object_pb2.ListWorldObjectResponse(
                         world_objects=response.object_in_image)
@@ -126,16 +127,16 @@ class NetworkComputeBrideAdapter:
                         reference_id=reference_id, metadata=detection_metadata)
                     store_helper.store_metadata(associated_metadata, data_id)
                 else:
-                    errMsg = "Unknown capability {}.".format(capture.name)
+                    errMsg = f'Unknown capability {capture.name}.'
                     store_helper.state.add_errors([make_error(data_id, errMsg)])
                     _LOGGER.error(errMsg)
 
         except ValueError:
-            errMsg = "Unable to get network compute bridge info."
+            errMsg = 'Unable to get network compute bridge info.'
             store_helper.state.add_errors([make_error(data_id, errMsg)])
             _LOGGER.error(errMsg)
         except RequestCancelledError:
-            _LOGGER.info("Capture canceled.")
+            _LOGGER.info('Capture canceled.')
 
     def _get_data_id(self, request, capability_name):
         """Get a data id for the given capability.
@@ -148,8 +149,7 @@ class NetworkComputeBrideAdapter:
             The data id associated with the given capability name.
         """
         data_id = data_acquisition_pb2.DataIdentifier(
-            action_id=request.action_id,
-            channel="{}--{}".format(self._worker_name, capability_name))
+            action_id=request.action_id, channel=f'{self._worker_name}--{capability_name}')
         return data_id
 
     def _request_data(self, request, network_compute_bridge_metadata, store_helper):
@@ -170,10 +170,10 @@ class NetworkComputeBrideAdapter:
             service_name=self._worker_name)
 
         try:
-            image_service = network_compute_bridge_metadata["image_service"]
-            image_source = network_compute_bridge_metadata["image_source"]
+            image_service = network_compute_bridge_metadata['image_service']
+            image_source = network_compute_bridge_metadata['image_source']
         except ValueError:
-            errMsg = "Unable to get image service and source info."
+            errMsg = 'Unable to get image service and source info.'
             data_id = self._get_data_id(request, kCapabilityImage)
             store_helper.state.add_errors([make_error(data_id, errMsg)])
             _LOGGER.error(errMsg)
@@ -182,10 +182,10 @@ class NetworkComputeBrideAdapter:
             image_service=image_service, image_source=image_source)
 
         try:
-            model_name = network_compute_bridge_metadata["model_name"]
-            min_confidence = network_compute_bridge_metadata["min_confidence"]
+            model_name = network_compute_bridge_metadata['model_name']
+            min_confidence = network_compute_bridge_metadata['min_confidence']
         except ValueError:
-            errMsg = "Unable to get model name or confidence value."
+            errMsg = 'Unable to get model name or confidence value.'
             data_id = self._get_data_id(request, kCapabilityObjectInImage)
             store_helper.state.add_errors([make_error(data_id, errMsg)])
             _LOGGER.error(errMsg)
@@ -212,13 +212,15 @@ def run_service(bosdyn_sdk_robot, port, network_compute_bridge_worker_name, logg
     add_servicer_to_server_fn = data_acquisition_plugin_service_pb2_grpc.add_DataAcquisitionPluginServiceServicer_to_server
 
     # Instance of the servicer to be run.
-    service_servicer = make_service(bosdyn_sdk_robot, network_compute_bridge_worker_name, logger=logger)
+    service_servicer = make_service(bosdyn_sdk_robot, network_compute_bridge_worker_name,
+                                    logger=logger)
     return GrpcServiceRunner(service_servicer, add_servicer_to_server_fn, port, logger=logger)
 
 
 def add_network_compute_bridge_plugin_arguments(parser):
     parser.add_argument('--worker-name',
-                        help="Name of the network compute bridge worker to get data from.", required=True)
+                        help='Name of the network compute bridge worker to get data from.',
+                        required=True)
 
 
 if __name__ == '__main__':
@@ -238,8 +240,8 @@ if __name__ == '__main__':
 
     # Create and authenticate a bosdyn robot object.
     self_ip = bosdyn.client.common.get_self_ip(options.hostname)
-    print('Detected IP address as: ' + self_ip)
-    sdk = bosdyn.client.create_standard_sdk("PointcloudPluginServiceSDK")
+    print(f'Detected IP address as: {self_ip}')
+    sdk = bosdyn.client.create_standard_sdk('PointcloudPluginServiceSDK')
     robot = sdk.create_robot(options.hostname)
     robot.authenticate_from_payload_credentials(*bosdyn.client.util.get_guid_and_secret(options))
     robot.sync_with_directory()
@@ -253,8 +255,8 @@ if __name__ == '__main__':
     # Use a keep alive to register the service with the robot directory.
     dir_reg_client = robot.ensure_client(DirectoryRegistrationClient.default_service_name)
     keep_alive = DirectoryRegistrationKeepAlive(dir_reg_client, logger=_LOGGER)
-    keep_alive.start(directory_name, DataAcquisitionPluginService.service_type, AUTHORITY,
-                     self_ip, service_runner.port)
+    keep_alive.start(directory_name, DataAcquisitionPluginService.service_type, AUTHORITY, self_ip,
+                     service_runner.port)
 
     # Attach the keep alive to the service runner and run until a SIGINT is received.
     with keep_alive:

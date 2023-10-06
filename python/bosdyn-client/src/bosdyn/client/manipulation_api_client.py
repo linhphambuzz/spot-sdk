@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -6,10 +6,9 @@
 
 """For clients to the Manipulation API service."""
 
+from bosdyn.api import manipulation_api_service_pb2_grpc
 from bosdyn.client.common import (BaseClient, handle_common_header_errors,
                                   handle_lease_use_result_errors)
-
-from bosdyn.api import manipulation_api_service_pb2_grpc
 
 from .lease import add_lease_wallet_processors
 

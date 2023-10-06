@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -9,19 +9,20 @@
 import argparse
 import sys
 
+import cv2
+import numpy as np
+
 import bosdyn.client
 import bosdyn.client.util
 from bosdyn.client.image import ImageClient
-
-import cv2
-import numpy as np
 
 
 def main(argv):
     # Parse args
     parser = argparse.ArgumentParser()
     bosdyn.client.util.add_base_arguments(parser)
-    parser.add_argument('--to-depth', help='Convert to the depth frame. Default is convert to visual.',
+    parser.add_argument('--to-depth',
+                        help='Convert to the depth frame. Default is convert to visual.',
                         action='store_true')
     parser.add_argument('--camera', help='Camera to acquire image from.', default='frontleft',\
                         choices=['frontleft', 'frontright', 'left', 'right', 'back',
@@ -31,9 +32,9 @@ def main(argv):
     options = parser.parse_args(argv)
 
     if options.to_depth:
-        sources = [ options.camera + '_depth', options.camera + '_visual_in_depth_frame' ]
+        sources = [options.camera + '_depth', options.camera + '_visual_in_depth_frame']
     else:
-        sources = [ options.camera + '_depth_in_visual_frame', options.camera + '_fisheye_image' ]
+        sources = [options.camera + '_depth_in_visual_frame', options.camera + '_fisheye_image']
 
 
     # Create robot object with an image client.
@@ -61,8 +62,8 @@ def main(argv):
     cv_visual = cv2.imdecode(np.frombuffer(image_responses[1].shot.image.data, dtype=np.uint8), -1)
 
     # Convert the visual image from a single channel to RGB so we can add color
-    visual_rgb = cv_visual if len(cv_visual.shape) == 3 else cv2.cvtColor(cv_visual, cv2.COLOR_GRAY2RGB)
-
+    visual_rgb = cv_visual if len(cv_visual.shape) == 3 else cv2.cvtColor(
+        cv_visual, cv2.COLOR_GRAY2RGB)
 
     # Map depth ranges to color
 
@@ -78,19 +79,19 @@ def main(argv):
     out = cv2.addWeighted(visual_rgb, 0.5, depth_color, 0.5, 0)
 
     if options.auto_rotate:
-        if image_responses[0].source.name[0:5] == "front":
+        if image_responses[0].source.name[0:5] == 'front':
             out = cv2.rotate(out, cv2.ROTATE_90_CLOCKWISE)
 
-        elif image_responses[0].source.name[0:5] == "right":
+        elif image_responses[0].source.name[0:5] == 'right':
             out = cv2.rotate(out, cv2.ROTATE_180)
 
     # Write the image out.
-    filename = options.camera + ".jpg"
+    filename = f'{options.camera}.jpg'
     cv2.imwrite(filename, out)
 
     return True
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if not main(sys.argv[1:]):
         sys.exit(1)

@@ -1,14 +1,15 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
-import pytest
 import math
 
-from bosdyn.api.geometry_pb2 import Quaternion
+import pytest
+
 from bosdyn import geometry  # noqa
+from bosdyn.api.geometry_pb2 import Quaternion
 
 
 def _is_near(x1, x2, thresh):

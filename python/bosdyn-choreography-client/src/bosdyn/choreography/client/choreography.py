@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -6,11 +6,12 @@
 
 """For clients to use the choreography service"""
 import collections
+import hashlib
 import logging
 import os
-import hashlib
 
 from google.protobuf import text_format
+from google.protobuf.wrappers_pb2 import StringValue
 
 from bosdyn.api.spot import (choreography_sequence_pb2, choreography_service_pb2,
                              choreography_service_pb2_grpc)
@@ -21,9 +22,9 @@ from bosdyn.client.exceptions import ResponseError, UnsetStatusError
 from bosdyn.client.lease import add_lease_wallet_processors
 from bosdyn.client.robot_command import NoTimeSyncError, _TimeConverter
 from bosdyn.util import seconds_to_duration
-from google.protobuf.wrappers_pb2 import StringValue
 
 LOGGER = logging.getLogger('__name__')
+
 
 class ChoreographyClient(BaseClient):
     """Client for Choreography Service."""
@@ -61,6 +62,7 @@ class ChoreographyClient(BaseClient):
             req,
             value_from_response=None,  # Return the complete response message
             error_from_response=common_header_errors,
+            copy_request=False,
             **kwargs)
 
     def list_all_moves_async(self, object_type=None, time_start_point=None, **kwargs):
@@ -71,6 +73,7 @@ class ChoreographyClient(BaseClient):
             req,
             value_from_response=None,  # Return the complete response message
             error_from_response=common_header_errors,
+            copy_request=False,
             **kwargs)
 
     def list_all_sequences(self, **kwargs):
@@ -81,6 +84,7 @@ class ChoreographyClient(BaseClient):
             req,
             value_from_response=None,  # Return the complete response message
             error_from_response=common_header_errors,
+            copy_request=False,
             **kwargs)
 
     def list_all_sequences_async(self, **kwargs):
@@ -91,6 +95,7 @@ class ChoreographyClient(BaseClient):
             req,
             value_from_response=None,  # Return the complete response message
             error_from_response=common_header_errors,
+            copy_request=False,
             **kwargs)
 
     def upload_choreography(self, choreography_seq, non_strict_parsing=True, **kwargs):
@@ -115,6 +120,7 @@ class ChoreographyClient(BaseClient):
             req,
             value_from_response=None,  # Return the complete response message
             error_from_response=common_header_errors,
+            copy_request=False,
             **kwargs)
 
     def upload_choreography_async(self, choreography_seq, non_strict_parsing=True, **kwargs):
@@ -126,6 +132,7 @@ class ChoreographyClient(BaseClient):
             req,
             value_from_response=None,  # Return the complete response message
             error_from_response=common_header_errors,
+            copy_request=False,
             **kwargs)
 
     def upload_animated_move(self, animation, generated_id="", **kwargs):
@@ -151,6 +158,7 @@ class ChoreographyClient(BaseClient):
             req,
             value_from_response=None,  # Return the complete response message
             error_from_response=_upload_animated_move_errors,
+            copy_request=False,
             **kwargs)
 
     def upload_animated_move_async(self, animation, generated_id="", **kwargs):
@@ -163,8 +171,17 @@ class ChoreographyClient(BaseClient):
             req,
             value_from_response=None,  # Return the complete response message
             error_from_response=_upload_animated_move_errors,
+            copy_request=False,
             **kwargs)
 
+    def get_choreography_status(self, **kwargs):
+        """Get the dance related status information for a robot and the local time for which it was valid."""
+        request = choreography_sequence_pb2.ChoreographyStatusRequest()
+        status = self.call(self._stub.ChoreographyStatus, request, value_from_response=None,
+                           error_from_response=None, copy_request=False, **kwargs)
+        client_time = _TimeConverter(
+            self, self.timesync_endpoint).local_seconds_from_robot_timestamp(status.validity_time)
+        return (status, client_time)
 
     def choreography_log_to_animation_file(self, name, fpath, has_arm, *args):
         """Turn the choreography log from the proto into an animation `cha` file type.
@@ -185,10 +202,10 @@ class ChoreographyClient(BaseClient):
             """Takes a list of options or a variable number of string arguments, or a mix of the two and returns a single list
                 containing all of the options to be included
             """
-            x=[]
+            x = []
             for i in argvs:
                 if 'list' in str(type(i)):
-                    x+=list(i)
+                    x += list(i)
                 elif 'str' in str(type(i)):
                     x.append(i)
             return x
@@ -200,8 +217,7 @@ class ChoreographyClient(BaseClient):
 
         def timestamp_to_seconds(timestamp):
             """Helper function to turn a seconds quantity and nanoseconds quantity into one value of unit seconds."""
-            return timestamp.seconds + 1e-9*timestamp.nanos
-
+            return timestamp.seconds + 1e-9 * timestamp.nanos
 
         #get the choreography log for the recording
         log_type = choreography_sequence_pb2.DownloadRobotStateLogRequest.LOG_TYPE_MANUAL
@@ -220,17 +236,17 @@ class ChoreographyClient(BaseClient):
 
         #format the complete header with all the options to be included in the *.cha file
         joint_spacer = "{:<60}"
-        header = (controls_header + "\n"
-                    "description: " + description + "\n")
+        header = (controls_header + "\n" "description: " + description + "\n")
 
         for option in option_list(*args):
             header = header + option + "\n"
 
         header = header + ("\n"
-                            "no parameters\n\n" + list_to_formatted_string(joint_type_list, joint_spacer) + "\n")
+                           "no parameters\n\n" +
+                           list_to_formatted_string(joint_type_list, joint_spacer) + "\n")
 
         spacer_val = '{:<30}'
-        ext=".cha"
+        ext = ".cha"
         file_path = os.path.join(fpath, name + ext)
         initial_time = -1
 
@@ -239,7 +255,7 @@ class ChoreographyClient(BaseClient):
             f.write(header)
 
             #create an empty list to hold the values for the current keyframe
-            list_values=[]
+            list_values = []
 
             # get the list of all the keyframes from the recording,
             # (the complete description of the robot in space at each timestamp)
@@ -250,7 +266,7 @@ class ChoreographyClient(BaseClient):
                 # and then write them to the *.cha file. Values are added to list_values in the same order as the
                 # joint categories in joint_type_list, and the order of the joint angles within those groups must also
                 # go in the correct order for the *.cha to be read correctly.
-                list_values=[]
+                list_values = []
 
                 #leg_joints values:
                 #front right leg joint values
@@ -291,7 +307,7 @@ class ChoreographyClient(BaseClient):
                 time = timestamp_to_seconds(k.timestamp)
 
                 #if the initial time is negative it's the first timestamp recorded, set that as the initial time
-                if(initial_time < 0):
+                if (initial_time < 0):
                     initial_time = time
 
                 #adjust the timestamp so it's relative to the start of the recording
@@ -326,7 +342,6 @@ class ChoreographyClient(BaseClient):
         print("Animation *.cha file downloaded to: %s" % file_path)
         return name + ".cha"
 
-
     def execute_choreography(self, choreography_name, client_start_time,
                              choreography_starting_slice, lease=None, **kwargs):
         """Execute the current choreography sequence loaded on the robot by name.
@@ -354,6 +369,7 @@ class ChoreographyClient(BaseClient):
             req,
             value_from_response=None,  # Return the complete response message
             error_from_response=_execute_choreography_errors,
+            copy_request=False,
             **kwargs)
 
     def execute_choreography_async(self, choreography_name, client_start_time,
@@ -366,6 +382,44 @@ class ChoreographyClient(BaseClient):
             req,
             value_from_response=None,  # Return the complete response message
             error_from_response=_execute_choreography_errors,
+            copy_request=False,
+            **kwargs)
+
+    def choreography_command(self, command_list, client_end_time, lease=None, **kwargs):
+        """Sends commands to interact with individual choreography moves.
+
+        Args:
+            command_list(list of choreography_sequence_pb2.MoveCommand protobuf): The commands.  Each 
+                command interacts with a single individual move.
+            client_end_time (float): The time (in seconds) that the command stops being valid. This time
+                should be provided in the local clock's timeframe and the client will convert it
+                to the required robot's clock timeframe.
+            lease (lease_pb2.Lease protobuf): A specific lease to use for the request. If nothing is
+                provided, the client will append the next lease sequence in this field by default.
+
+        Returns:
+            The full ChoreographyCommandResponse message.
+        """
+        req = self.build_choreography_command_request(command_list, client_end_time, lease)
+
+        return self.call(
+            self._stub.ChoreographyCommand,
+            req,
+            value_from_response=None,  # Return the complete response message
+            error_from_response=common_header_errors,
+            copy_request=False,
+            **kwargs)
+
+    def choreography_command_async(self, command_list, client_end_time, lease=None, **kwargs):
+        """Async version of choreography_command()."""
+        req = self.build_choreography_command_request(command_list, client_end_time, lease)
+
+        return self.call_async(
+            self._stub.ChoreographyCommand,
+            req,
+            value_from_response=None,  # Return the complete response message
+            error_from_response=common_header_errors,
+            copy_request=False,
             **kwargs)
 
     def start_recording_state(self, duration_secs, continue_session_id=0, **kwargs):
@@ -386,6 +440,7 @@ class ChoreographyClient(BaseClient):
             request,
             value_from_response=None,  # Return the complete response message
             error_from_response=_start_recording_state_errors,
+            copy_request=False,
             **kwargs)
 
     def start_recording_state_async(self, duration_secs, continue_session_id=0, **kwargs):
@@ -396,6 +451,7 @@ class ChoreographyClient(BaseClient):
             request,
             value_from_response=None,  # Return the complete response message
             error_from_response=_start_recording_state_errors,
+            copy_request=False,
             **kwargs)
 
     def stop_recording_state(self, **kwargs):
@@ -410,6 +466,7 @@ class ChoreographyClient(BaseClient):
             request,
             value_from_response=None,  # Return the complete response message
             error_from_response=common_header_errors,
+            copy_request=False,
             **kwargs)
 
     def stop_recording_state_async(self, **kwargs):
@@ -420,7 +477,76 @@ class ChoreographyClient(BaseClient):
             request,
             value_from_response=None,  # Return the complete response message
             error_from_response=common_header_errors,
+            copy_request=False,
             **kwargs)
+
+    def save_sequence(self, seq_name, labels=[], **kwargs):
+        """Save an uploaded sequence to the robot. Saved sequences are 
+        automatically uploaded to the robot when it boots. 
+        
+        Returns:
+            The full SaveSequenceResponse proto."""
+        request = self.build_save_sequence_request(seq_name, labels)
+        return self.call(self._stub.SaveSequence, request, value_from_response=None,
+                         error_from_response=common_header_errors, copy_request=False, **kwargs)
+
+    def save_sequence_async(self, seq_name, labels=[], **kwargs):
+        """Async version of save_sequence()."""
+        request = self.build_save_sequence_request(seq_name, labels)
+        return self.call_async(self._stub.SaveSequence, request, value_from_response=None,
+                               error_from_response=common_header_errors, copy_request=False,
+                               **kwargs)
+
+    def delete_sequence(self, seq_name, **kwargs):
+        """Delete a sequence from temporary robot memory and 
+        delete any copies of the sequence saved to disk. 
+        
+        Returns:
+            The full DeleteSequenceResponse proto."""
+        request = choreography_sequence_pb2.DeleteSequenceRequest(sequence_name=seq_name)
+        return self.call(self._stub.DeleteSequence, request, value_from_response=None,
+                         error_from_response=common_header_errors, copy_request=False, **kwargs)
+
+    def delete_sequence_async(self, seq_name, **kwargs):
+        """Async version of delete_sequence()."""
+        request = choreography_sequence_pb2.DeleteSequenceRequest(sequence_name=seq_name)
+        return self.call_async(self._stub.DeleteSequence, request, value_from_response=None,
+                               error_from_response=common_header_errors, copy_request=False,
+                               **kwargs)
+
+    def modify_choreography_info(self, seq_name, add_labels=[], remove_labels=[], **kwargs):
+        """Modifies a sequence's ChoreographyInfo field to remove or 
+        add any labels attached to the sequence.
+        
+        Returns:
+            The full ModifyChoreographyInfoResponse proto."""
+        request = self.build_modify_choreography_info_request(seq_name, add_labels, remove_labels)
+        return self.call(self._stub.ModifyChoreographyInfo, request, value_from_response=None,
+                         error_from_response=common_header_errors, copy_request=False, **kwargs)
+
+    def modify_choreography_info_async(self, seq_name, add_labels=[], remove_labels=[], **kwargs):
+        """Async version of modify_choreography_info()."""
+        request = self.build_modify_choreography_info_request(seq_name, add_labels, remove_labels)
+        return self.call_async(self._stub.ModifyChoreographyInfo, request, value_from_response=None,
+                               error_from_response=common_header_errors, copy_request=False,
+                               **kwargs)
+
+    def clear_all_sequence_files(self, **kwargs):
+        """Completely clears all choreography files that are saved on the robot,
+        including animation proto files. 
+        
+        Returns:
+            The full ClearAllSequenceFilesResponse proto."""
+        request = choreography_sequence_pb2.ClearAllSequenceFilesRequest()
+        return self.call(self._stub.ClearAllSequenceFiles, request, value_from_response=None,
+                         error_from_response=common_header_errors, copy_request=False, **kwargs)
+
+    def clear_all_sequence_files_async(self, **kwargs):
+        """Async version of clear_all_sequence_files()."""
+        request = choreography_sequence_pb2.ClearAllSequenceFilesRequest()
+        return self.call_async(self._stub.ClearAllSequenceFiles, request, value_from_response=None,
+                               error_from_response=common_header_errors, copy_request=False,
+                               **kwargs)
 
 
     @staticmethod
@@ -442,7 +568,6 @@ class ChoreographyClient(BaseClient):
             request.continue_recording_duration.CopyFrom(seconds_to_duration(duration_seconds))
         return request
 
-
     def download_robot_state_log(self, log_type, **kwargs):
         """Download the manual or automatically collected logs for choreography robot state.
 
@@ -460,6 +585,7 @@ class ChoreographyClient(BaseClient):
             request,
             value_from_response=_get_streamed_choreography_state_log,  # Parses streamed response
             error_from_response=_download_robot_state_log_stream_errors,
+            copy_request=False,
             **kwargs)
 
     def build_execute_choreography_request(self, choreography_name, client_start_time,
@@ -472,6 +598,27 @@ class ChoreographyClient(BaseClient):
         if client_start_time is not None:
             request.start_time.CopyFrom(
                 self._update_timestamp_filter(client_start_time, self.timesync_endpoint))
+        return request
+
+    def build_choreography_command_request(self, command_list, client_end_time, lease=None):
+        req = choreography_sequence_pb2.ChoreographyCommandRequest(
+            lease=lease,
+            command_end_time=self._update_timestamp_filter(client_end_time, self.timesync_endpoint))
+        # Python list to repeated proto.
+        req.commands.extend(command_list)
+        return req
+
+    def build_save_sequence_request(self, sequence_name, labels=[]):
+        request = choreography_sequence_pb2.SaveSequenceRequest(sequence_name=sequence_name)
+        request.add_labels.extend(labels)
+        return request
+
+    def build_modify_choreography_info_request(self, sequence_name, add_labels=[],
+                                               remove_labels=[]):
+        request = choreography_sequence_pb2.ModifyChoreographyInfoRequest(
+            sequence_name=sequence_name)
+        request.add_labels.extend(add_labels)
+        request.remove_labels.extend(remove_labels)
         return request
 
     def _update_timestamp_filter(self, timestamp, timesync_endpoint):
@@ -533,7 +680,6 @@ class AnimationUploadHelper:
                 gen_id = move.animated_move_generated_id.value
                 self.animation_name_to_generated_id[move_name] = gen_id
 
-
     def upload_animated_move(self, animation, **kwargs):
         """Uploads the animation to robot if the animation protobuf has changed.
 
@@ -542,7 +688,7 @@ class AnimationUploadHelper:
         indicates that the animation protobuf has changed since the last one uploaded to robot.
 
         Args:
-            animation_proto(choreography_sequence_pb2.Animation): Animation to maybe upload.
+            animation(choreography_sequence_pb2.Animation): Animation to maybe upload.
 
         Returns:
             The UploadAnimateMoveResponse protobuf message if the animation is actually sent.
@@ -560,7 +706,6 @@ class AnimationUploadHelper:
             # Add the move name to the tracked list.
             self.animation_name_to_generated_id[animation.name] = generated_id
         return result
-
 
     def generate_animation_id(self, animation_proto):
         """Serialize an Animation protobuf message and create a hash from the binary string.
@@ -696,6 +841,7 @@ def _download_robot_state_log_stream_errors(response):
 Static helper methods.
 '''
 
+
 def _get_streamed_choreography_state_log(response):
     """Reads a streamed response to recreate a ChoreographyStateLog proto.
 
@@ -721,6 +867,7 @@ def _get_streamed_choreography_state_log(response):
     if (num_chunks > 0):
         choreography_log.ParseFromString(data)
     return (initial_status, choreography_log)
+
 
 def load_choreography_sequence_from_binary_file(file_path):
     """Read a choreography sequence file into a protobuf ChoreographySequence message."""

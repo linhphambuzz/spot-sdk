@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -13,11 +13,11 @@ system through the robot.
 import argparse
 import sys
 
-import bosdyn.client.util
-from bosdyn.client.common import BaseClient
-
 import announce_pb2 as announce_protos
 import announce_service_pb2_grpc as announce_service_protos_grpc
+
+import bosdyn.client.util
+from bosdyn.client.common import BaseClient
 
 
 class AnnounceClient(BaseClient):
@@ -35,7 +35,8 @@ class AnnounceClient(BaseClient):
         """Announce a message."""
         req = announce_protos.AnnounceRequest(message=message)
         return self.call(self._stub.Announce, req,
-                         value_from_response=lambda response: response.message, **kwargs)
+                         value_from_response=lambda response: response.message, copy_request=False,
+                         **kwargs)
 
 
 def run_announce_client(config):
@@ -64,7 +65,7 @@ def main():
     parser = argparse.ArgumentParser()
     bosdyn.client.util.add_base_arguments(parser)
     bosdyn.client.util.add_payload_credentials_arguments(parser)
-    parser.add_argument("--message", required=True, type=str, help="Message to send to server")
+    parser.add_argument('--message', required=True, type=str, help='Message to send to server')
     options = parser.parse_args()
 
     run_announce_client(options)

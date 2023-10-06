@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -308,7 +308,7 @@ def parse_timespan(timespan_spec):
     """Parse a timespan spec of the form {from-time}[-{to-time}]
 
     Args:
-     val: string with format {spec} or {spec}-{spec} where {spec} is a string
+     timespan_spec: string with format {spec} or {spec}-{spec} where {spec} is a string
              with a format as described by TIME_FORMAT_DESC.
 
     Returns: (datetime.datetime, None) or (datetime.datetime, datetime.datetime).
@@ -370,3 +370,11 @@ class RobotTimeConverter:
           local_time_secs:  Local system time, in seconds from the unix epoch.
         """
         return local_time_secs + nsec_to_sec(self._clock_skew_nsec)
+
+    def local_seconds_from_robot_timestamp(self, robot_timestamp):
+        """Returns the local time in seconds from a robot-clock Timestamp proto.
+
+        Args:
+          local_time_secs:  Local system time, in seconds from the unix epoch.
+        """
+        return nsec_to_sec(timestamp_to_nsec(robot_timestamp) - self._clock_skew_nsec)

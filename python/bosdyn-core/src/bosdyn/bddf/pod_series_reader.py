@@ -1,14 +1,14 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
 """A class for reading a series of POD data from a DataFile."""
-from itertools import product
 import struct
+from itertools import product
 
-from .common import ParseError, POD_TYPE_TO_NUM_BYTES, POD_TYPE_TO_STRUCT
+from .common import POD_TYPE_TO_NUM_BYTES, POD_TYPE_TO_STRUCT, ParseError
 
 
 class PodSeriesReader:

@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -52,12 +52,12 @@ def hello_arm(config):
     bosdyn.client.util.authenticate(robot)
     robot.time_sync.wait_for_sync()
 
-    assert robot.has_arm(), "Robot requires an arm to run this example."
+    assert robot.has_arm(), 'Robot requires an arm to run this example.'
 
     # Verify the robot is not estopped and that an external application has registered and holds
     # an estop endpoint.
-    assert not robot.is_estopped(), "Robot is estopped. Please use an external E-Stop client, " \
-                                    "such as the estop SDK example, to configure E-Stop."
+    assert not robot.is_estopped(), 'Robot is estopped. Please use an external E-Stop client, ' \
+                                    'such as the estop SDK example, to configure E-Stop.'
 
     lease_client = robot.ensure_client(bosdyn.client.lease.LeaseClient.default_service_name)
 
@@ -66,16 +66,16 @@ def hello_arm(config):
         # Now, we are ready to power on the robot. This call will block until the power
         # is on. Commands would fail if this did not happen. We can also check that the robot is
         # powered at any point.
-        robot.logger.info("Powering on robot... This may take a several seconds.")
+        robot.logger.info('Powering on robot... This may take a several seconds.')
         robot.power_on(timeout_sec=20)
-        assert robot.is_powered_on(), "Robot power on failed."
-        robot.logger.info("Robot powered on.")
+        assert robot.is_powered_on(), 'Robot power on failed.'
+        robot.logger.info('Robot powered on.')
 
         # Tell the robot to stand up. The command service is used to issue commands to a robot.
-        robot.logger.info("Commanding robot to stand...")
+        robot.logger.info('Commanding robot to stand...')
         command_client = robot.ensure_client(RobotCommandClient.default_service_name)
         blocking_stand(command_client, timeout_sec=10)
-        robot.logger.info("Robot standing.")
+        robot.logger.info('Robot standing.')
 
         # Unstow the arm
         # Build the unstow command using RobotCommandBuilder
@@ -83,7 +83,7 @@ def hello_arm(config):
 
         # Issue the command via the RobotCommandClient
         unstow_command_id = command_client.robot_command(unstow)
-        robot.logger.info("Unstow command issued.")
+        robot.logger.info('Unstow command issued.')
 
         # Wait until the stow command is successful.
         block_until_arm_arrives(command_client, unstow_command_id, 3.0)
@@ -91,7 +91,7 @@ def hello_arm(config):
         # Get robot pose in vision frame from robot state (we want to send commands in vision
         # frame relative to where the robot stands now)
         robot_state = robot_state_client.get_robot_state()
-        vision_T_world = get_vision_tform_body(robot_state.kinematic_state.transforms_snapshot)
+        vision_T_body = get_vision_tform_body(robot_state.kinematic_state.transforms_snapshot)
 
         # In this demo, the robot will walk in a square while moving its arm in a circle.
         # There are some parameters that you can set below:
@@ -119,9 +119,8 @@ def hello_arm(config):
             y = (_L_ROBOT_SQUARE / 2) - _L_ARM_CIRCLE * (np.cos(2 * ii * math.pi / _N_POINTS))
             z = _VERTICAL_SHIFT + _L_ARM_CIRCLE * (np.sin(2 * ii * math.pi / _N_POINTS))
 
-            # Using the transform we got earlier, transform the points into the world frame
-            x_ewrt_vision, y_ewrt_vision, z_ewrt_vision = vision_T_world.transform_point(
-                x, y, z)
+            # Using the transform we got earlier, transform the points into the vision frame
+            x_ewrt_vision, y_ewrt_vision, z_ewrt_vision = vision_T_body.transform_point(x, y, z)
 
             # Add a new point to the robot command's arm cartesian command se3 trajectory
             # This will be an se3 trajectory point
@@ -133,10 +132,10 @@ def hello_arm(config):
             point.pose.position.y = y_ewrt_vision
             point.pose.position.z = z_ewrt_vision
 
-            point.pose.rotation.x = vision_T_world.rot.x
-            point.pose.rotation.y = vision_T_world.rot.y
-            point.pose.rotation.z = vision_T_world.rot.z
-            point.pose.rotation.w = vision_T_world.rot.w
+            point.pose.rotation.x = vision_T_body.rot.x
+            point.pose.rotation.y = vision_T_body.rot.y
+            point.pose.rotation.z = vision_T_body.rot.z
+            point.pose.rotation.w = vision_T_body.rot.w
 
             traj_time = (ii + 1) * seconds_arm
             duration = seconds_to_duration(traj_time)
@@ -151,9 +150,8 @@ def hello_arm(config):
             x = _L_ROBOT_SQUARE * x_vals[ii]
             y = _L_ROBOT_SQUARE * y_vals[ii]
 
-            # Transform desired position into world frame
-            x_ewrt_vision, y_ewrt_vision, z_ewrt_vision = vision_T_world.transform_point(
-                x, y, 0)
+            # Transform desired position into vision frame
+            x_ewrt_vision, y_ewrt_vision, z_ewrt_vision = vision_T_body.transform_point(x, y, 0)
 
             # Add a new point to the robot command's arm cartesian command se3 trajectory
             # This will be an se2 trajectory point
@@ -164,7 +162,7 @@ def hello_arm(config):
             point.pose.position.x = x_ewrt_vision
             point.pose.position.y = y_ewrt_vision
 
-            point.pose.angle = vision_T_world.rot.to_yaw()
+            point.pose.angle = vision_T_body.rot.to_yaw()
 
             traj_time = (ii + 1) * seconds_body
             duration = seconds_to_duration(traj_time)
@@ -184,15 +182,15 @@ def hello_arm(config):
         # Send the command using the command client
         # The SE2TrajectoryRequest requires an end_time, which is set
         # during the command client call
-        robot.logger.info("Sending arm and body trajectory commands.")
+        robot.logger.info('Sending arm and body trajectory commands.')
         command_client.robot_command(command, end_time_secs=time.time() + _SECONDS_FULL)
         time.sleep(_SECONDS_FULL + 2)
 
         # Power the robot off. By specifying "cut_immediately=False", a safe power off command
         # is issued to the robot. This will attempt to sit the robot before powering off.
         robot.power_off(cut_immediately=False, timeout_sec=20)
-        assert not robot.is_powered_on(), "Robot power off failed."
-        robot.logger.info("Robot safely powered off.")
+        assert not robot.is_powered_on(), 'Robot power off failed.'
+        robot.logger.info('Robot safely powered off.')
 
 
 def main(argv):
@@ -205,7 +203,7 @@ def main(argv):
         return True
     except Exception as exc:  # pylint: disable=broad-except
         logger = bosdyn.client.util.get_logger()
-        logger.exception("Threw an exception")
+        logger.exception('Threw an exception')
         return False
 
 

@@ -1,31 +1,27 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
-from __future__ import print_function
-import os
 import io
 import json
-import time
 import logging
+import os
 import ssl
-
+import time
 from pathlib import Path
 from urllib.error import URLError
-from urllib.request import Request, urlopen
 from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
-from bosdyn.api import data_acquisition_pb2
-from bosdyn.api import data_acquisition_store_pb2
+from google.protobuf import json_format
+from google.protobuf.struct_pb2 import Struct
 
 import bosdyn.client
 import bosdyn.client.util
+from bosdyn.api import data_acquisition_pb2, data_acquisition_store_pb2
 from bosdyn.client.exceptions import ResponseError
-
-from google.protobuf.struct_pb2 import Struct
-from google.protobuf import json_format
 
 # Logger for all the debug information from the tests.
 _LOGGER = logging.getLogger()
@@ -174,7 +170,7 @@ def clean_filename(filename):
         filename(string): Original filename to clean.
 
     Returns:
-        Valid filename with removed characters \:\*\?\<\>\|
+        Valid filename with removed characters :*?<>|
     """
 
     return "".join(i for i in filename if i not in ":*?<>|")
@@ -320,7 +316,7 @@ def download_data_REST(query_params, hostname, token, destination_folder='.',
                     chunk = resp.read(chunk_size)
                     if len(chunk) == 0:
                         break
-                    print('.', end = '', flush=True)
+                    print('.', end='', flush=True)
                     fid.write(chunk)
     except URLError as rest_error:
         print("REST Exception:\n")

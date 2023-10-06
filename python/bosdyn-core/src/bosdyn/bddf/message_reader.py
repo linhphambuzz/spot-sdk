@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -6,8 +6,10 @@
 
 """A class for reading message data from a DataFile."""
 
+from deprecated.sphinx import deprecated
+
 from .common import PROTOBUF_CONTENT_TYPE
-from deprecated import deprecated
+
 
 class MessageReader:
     """A class for reading message data from a DataFile.

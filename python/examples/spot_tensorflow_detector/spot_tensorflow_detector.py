@@ -1,29 +1,28 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
 """Tutorial to show how to use the Boston Dynamics API"""
-from __future__ import print_function
 import argparse
 import io
 import multiprocessing
-from multiprocessing import Process, Queue
 import os
 import sys
 import time
+from multiprocessing import Process, Queue
 
 import cv2
 import numpy as np
 from PIL import Image
 from scipy import ndimage
+from tensorflow_object_detection import DetectorAPI
 
-from bosdyn.api.image_pb2 import ImageSource
 import bosdyn.client
 import bosdyn.client.util
+from bosdyn.api.image_pb2 import ImageSource
 from bosdyn.client.image import ImageClient
-from tensorflow_object_detection import DetectorAPI
 
 # This is a multiprocessing.Queue for communication between the main process and the
 # Tensorflow processes.
@@ -58,9 +57,9 @@ def inline_print(num_tabs, value):
     """
 
     #move cursor back to the start of the line
-    print(chr(13), end="")
-    print('\t' * num_tabs, end="")
-    print(value, end="")
+    print(chr(13), end='')
+    print('\t' * num_tabs, end='')
+    print(value, end='')
 
 
 def start_tensorflow_processes(num_processes, model_path, detection_classes, detection_threshold,
@@ -213,7 +212,7 @@ class SpotImageCapture:
         """ Captures an image from a specific camera.
 
         Args:
-            camera: String identifier of the camera to use.
+            sleep_between_capture: Duration to sleep between captures.
         """
         while True:
             images_response = self.image_client.get_image_from_sources(self.source_list)
@@ -246,27 +245,28 @@ def main(argv):
     """
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-path", required=True,
-                        help="Local file path to the Tensorflow model")
-    parser.add_argument("--number-tensorflow-processes", default=7, type=int,
-                        help="Number of Tensorflow processes to run in parallel")
-    parser.add_argument("--detection-threshold", default=0.7, type=float,
-                        help="Detection threshold to use for Tensorflow detections")
+    parser.add_argument('--model-path', required=True,
+                        help='Local file path to the Tensorflow model')
+    parser.add_argument('--number-tensorflow-processes', default=7, type=int,
+                        help='Number of Tensorflow processes to run in parallel')
+    parser.add_argument('--detection-threshold', default=0.7, type=float,
+                        help='Detection threshold to use for Tensorflow detections')
     parser.add_argument(
-        "--sleep-between-capture", default=0.0, type=float,
-        help="Seconds to sleep between each image capture loop iteration, which captures " +
-        "an image from all cameras")
+        '--sleep-between-capture', default=0.0, type=float, help=
+        'Seconds to sleep between each image capture loop iteration, which captures an image from all cameras'
+    )
     parser.add_argument(
-        "--detection-classes", help="Comma-separated list of detection classes " +
-        "included in the Tensorflow model; Default is to use all classes in the model")
+        '--detection-classes',
+        help='Comma-separated list of detection classes included in the Tensorflow model; '
+        'Default is to use all classes in the model')
     parser.add_argument(
-        "--max-processing-delay", default=4.0, type=float,
-        help="Maximum allowed delay for processing an image; " +
-        "any image older than this value will be skipped")
+        '--max-processing-delay', default=4.0, type=float, help=
+        'Maximum allowed delay for processing an image; any image older than this value will be skipped'
+    )
     parser.add_argument(
-        "--max-display-delay", default=5.0, type=float,
-        help="Maximum allowed delay for displaying an image; " +
-        "any image older than this value will be skipped")
+        '--max-display-delay', default=5.0, type=float, help=
+        'Maximum allowed delay for displaying an image; any image older than this value will be skipped'
+    )
 
     bosdyn.client.util.add_base_arguments(parser)
     options = parser.parse_args(argv)
@@ -274,13 +274,13 @@ def main(argv):
         detection_classes = []
         if options.detection_classes:
             # Convert comma-separated detection classes to a list of integers
-            detection_classes = list(map(int, list(options.detection_classes.split(","))))
+            detection_classes = list(map(int, list(options.detection_classes.split(','))))
 
         # Make sure the model path is a valid file
         if options.model_path is None or \
         not os.path.exists(options.model_path) or \
         not os.path.isfile(options.model_path):
-            print("ERROR, could not find model file " + str(options.model_path))
+            print(f'ERROR, could not find model file {options.model_path}')
             sys.exit(1)
 
         image_capture = SpotImageCapture()
@@ -297,15 +297,15 @@ def main(argv):
 
         #sleep to give the Tensorflow processes time to initialize
         time.sleep(5)
-        print("\n\n\nRAW_IMAGES_QUEUE\tPROCESSED_IMAGES_QUEUE\tNetwork_Delay\t\
-            Processing_Delay\tDisplay_Delay\t\tTotal_Delay\t\tDisplay_Skips\tProcessing_Skips")
+        print('\n\n\nRAW_IMAGES_QUEUE\tPROCESSED_IMAGES_QUEUE\tNetwork_Delay\t\
+            Processing_Delay\tDisplay_Delay\t\tTotal_Delay\t\tDisplay_Skips\tProcessing_Skips')
         # Start the ingestion of images from the Spot in this main process
         image_capture.capture_images(options.sleep_between_capture)
 
         return True
     except Exception as exc:  # pylint: disable=broad-except
         logger = bosdyn.client.util.get_logger()
-        logger.error("Spot Tensorflow Detector threw an exception: %s", exc)
+        logger.error('Spot Tensorflow Detector threw an exception: %s', exc)
         return False
 
 

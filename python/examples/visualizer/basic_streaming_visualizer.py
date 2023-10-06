@@ -1,34 +1,34 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
 import argparse
-import google.protobuf.timestamp_pb2
 import math
-import numpy as np
-import numpy.linalg
 import os
 import sys
 import threading
 import time
+
+import google.protobuf.timestamp_pb2
+import numpy as np
+import numpy.linalg
 import vtk
+from visualization_utils import (add_numpy_to_vtk_object, get_default_color_map,
+                                 get_vtk_cube_source, get_vtk_polydata_from_numpy,
+                                 make_spot_vtk_hexahedron, se3pose_proto_to_vtk_tf)
 from vtk.util import numpy_support
-from bosdyn.api import geometry_pb2
-from bosdyn.api import local_grid_pb2
-from bosdyn.api import world_object_pb2
+
 import bosdyn.client
+import bosdyn.client.util
+from bosdyn.api import geometry_pb2, local_grid_pb2, world_object_pb2
 from bosdyn.client.frame_helpers import *
 from bosdyn.client.image import ImageClient, depth_image_to_pointcloud
 from bosdyn.client.local_grid import LocalGridClient
 from bosdyn.client.robot_state import RobotStateClient
 from bosdyn.client.world_object import WorldObjectClient
-import bosdyn.client.util
 from bosdyn.util import timestamp_to_nsec
-from visualization_utils import add_numpy_to_vtk_object, get_vtk_polydata_from_numpy, \
-                                get_default_color_map, se3pose_proto_to_vtk_tf, make_spot_vtk_hexahedron, \
-                                get_vtk_cube_source
 
 
 class WorldObjectTimedCallbackEvent(object):
@@ -82,7 +82,7 @@ class WorldObjectTimedCallbackEvent(object):
 
     def init_object_actor(self, world_object):
         """Initialize a sphere VTK actor to display world objects (not fiducials)."""
-        if world_object.HasField("apriltag_properties"):
+        if world_object.HasField('apriltag_properties'):
             # Use show_fiducial function for apriltags to get a more representative visualization.
             return
         sphere_source = vtk.vtkSphereSource()
@@ -119,7 +119,7 @@ class WorldObjectTimedCallbackEvent(object):
             if len(objs.transforms_snapshot.child_to_parent_edge_map) < 1:
                 # Must have vision_tform_object frame to visualize the object.
                 continue
-            if objs.HasField("apriltag_properties"):
+            if objs.HasField('apriltag_properties'):
                 fid_and_text = self.create_fiducial_and_text_actors(objs)
                 self.current_fiducial_actor_and_text.append(fid_and_text)
             else:
@@ -149,7 +149,7 @@ class WorldObjectTimedCallbackEvent(object):
         # Iterate through the new set of world objects. If we have existing VTK actors already created, then
         # update that VTK actor's information. Otherwise, create a new VTK actor for the object.
         for objs in world_objects:
-            if objs.HasField("apriltag_properties"):
+            if objs.HasField('apriltag_properties'):
                 if added_fiducials_count < len(self.current_fiducial_actor_and_text):
                     # Update an existing fiducial VTK actor.
                     fiducial_actor, text_actor = self.current_fiducial_actor_and_text[
@@ -348,7 +348,7 @@ def get_terrain_grid(local_grid_proto):
 def create_vtk_no_step_grid(proto, robot_state_client):
     """Generate VTK polydata for the no step grid from the local grid response."""
     for local_grid_found in proto:
-        if local_grid_found.local_grid_type_name == "no_step":
+        if local_grid_found.local_grid_type_name == 'no_step':
             local_grid_proto = local_grid_found
             cell_size = local_grid_found.local_grid.extent.cell_size
     # Unpack the data field for the local grid.
@@ -388,7 +388,7 @@ def create_vtk_no_step_grid(proto, robot_state_client):
 def create_vtk_obstacle_grid(proto, robot_state_client):
     """Generate VTK polydata for the obstacle distance grid from the local grid response."""
     for local_grid_found in proto:
-        if local_grid_found.local_grid_type_name == "obstacle_distance":
+        if local_grid_found.local_grid_type_name == 'obstacle_distance':
             local_grid_proto = local_grid_found
             cell_size = local_grid_found.local_grid.extent.cell_size
     # Unpack the data field for the local grid.
@@ -448,15 +448,15 @@ def create_vtk_full_terrain_grid(proto):
     """Generate VTK polydata for the terrain (height) grid from the local grid response."""
     # Parse each local grid response to create numpy arrays for each.
     for local_grid_found in proto:
-        if local_grid_found.local_grid_type_name == "terrain":
+        if local_grid_found.local_grid_type_name == 'terrain':
             vision_tform_local_grid = get_a_tform_b(
                 local_grid_found.local_grid.transforms_snapshot, VISION_FRAME_NAME,
                 local_grid_found.local_grid.frame_name_local_grid_data).to_proto()
             cell_size = local_grid_found.local_grid.extent.cell_size
             terrain_pts = get_terrain_grid(local_grid_found)
-        if local_grid_found.local_grid_type_name == "terrain_valid":
+        if local_grid_found.local_grid_type_name == 'terrain_valid':
             valid_inds = get_valid_pts(local_grid_found)
-        if local_grid_found.local_grid_type_name == "intensity":
+        if local_grid_found.local_grid_type_name == 'intensity':
             color = get_intensity_grid(local_grid_found)
 
     # Possibly mask invalid cells (filtering the terrain points by validity).
@@ -483,7 +483,7 @@ def unpack_grid(local_grid_proto):
     # Determine the data type for the bytes data.
     data_type = get_numpy_data_type(local_grid_proto.local_grid)
     if data_type is None:
-        print("Cannot determine the dataformat for the local grid.")
+        print('Cannot determine the dataformat for the local grid.')
         return None
     # Decode the local grid.
     if local_grid_proto.local_grid.encoding == local_grid_pb2.LocalGrid.ENCODING_RAW:
@@ -536,7 +536,7 @@ def compute_ground_height_in_vision_frame(robot_state_client):
     robot_state = robot_state_client.get_robot_state()
     vision_tform_ground_plane = get_a_tform_b(robot_state.kinematic_state.transforms_snapshot,
                                               VISION_FRAME_NAME, GROUND_PLANE_FRAME_NAME)
-    return vision_tform_ground_plane.position.x
+    return vision_tform_ground_plane.position.z
 
 
 class LocalGridTimedCallbackEvent(object):
@@ -609,13 +609,13 @@ class LocalGridTimedCallbackEvent(object):
             proto, self.robot_state_client)
         # Create a VTK actor for the local grid.
         for local_grid in proto:
-            if local_grid.local_grid_type_name == "terrain" and 'terrain' in self.local_grid_types:
+            if local_grid.local_grid_type_name == 'terrain' and 'terrain' in self.local_grid_types:
                 terrain_cell_size = local_grid.local_grid.extent.cell_size
                 self.terrain_grid_actor = self.create_local_grid_actor(terrain_cell_size, terrain)
-            if local_grid.local_grid_type_name == "no_step" and 'no-step' in self.local_grid_types:
+            if local_grid.local_grid_type_name == 'no_step' and 'no-step' in self.local_grid_types:
                 no_step_cell_size = local_grid.local_grid.extent.cell_size
                 self.no_step_grid_actor = self.create_local_grid_actor(no_step_cell_size, no_step)
-            if local_grid.local_grid_type_name == "obstacle_distance" and 'obstacle-distance' in self.local_grid_types:
+            if local_grid.local_grid_type_name == 'obstacle_distance' and 'obstacle-distance' in self.local_grid_types:
                 obstacle_distance_cell_size = local_grid.local_grid.extent.cell_size
                 self.obstacle_grid_actor = self.create_local_grid_actor(
                     obstacle_distance_cell_size, obstacle_distance)
@@ -672,7 +672,7 @@ def main(argv):
     camera.SetPosition(0, 0, 5)
 
     renderWindow = vtk.vtkRenderWindow()
-    renderWindow.SetWindowName("API Visualizer")
+    renderWindow.SetWindowName('API Visualizer')
     renderWindow.SetSize(1280, 720)
 
     renderWindowInteractor = vtk.vtkRenderWindowInteractor()
@@ -696,7 +696,7 @@ def main(argv):
         renderer.AddActor(actor)
 
     if robot.has_arm() and options.show_hand_depth:
-        image_service_timer = ImageServiceTimedCallbackEvent(image_service_client, ["hand_depth"])
+        image_service_timer = ImageServiceTimedCallbackEvent(image_service_client, ['hand_depth'])
         image_service_actor = image_service_timer.get_actor()
         renderer.AddActor(image_service_actor)
 

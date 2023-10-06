@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -6,30 +6,33 @@
 
 import math
 import numbers
+
 import numpy
-import six
+from deprecated.sphinx import deprecated
 
 from bosdyn.api import geometry_pb2
 
-from deprecated import deprecated
+
+def recenter_value_mod(value, center, amplitude):
+    new_value = (value - center) % amplitude + center
+    if new_value >= (center + 0.5 * amplitude):
+        new_value -= amplitude
+    elif new_value < (center - 0.5 * amplitude):
+        new_value += amplitude
+
+    return new_value
+
+
+def recenter_angle_mod(theta, center):
+    return recenter_value_mod(theta, center, 2 * math.pi)
 
 
 def angle_diff(a1, a2):
-    v = a1 - a2
-    while v > math.pi:
-        v -= 2 * math.pi
-    while v < -math.pi:
-        v += 2 * math.pi
-    return v
+    return recenter_angle_mod(a1 - a2, 0.0)
 
 
 def angle_diff_degrees(a1, a2):
-    v = a1 - a2
-    while v > 180:
-        v -= 360
-    while v < -180:
-        v += 360
-    return v
+    return recenter_value_mod(a1 - a2, 0.0, 360.0)
 
 
 class Vec2(object):
@@ -188,11 +191,8 @@ class Vec3(object):
     def cross(self, other):
         if not isinstance(other, Vec3):
             raise TypeError("Can't cross types %s and %s." % (type(self), type(other)))
-        return Vec3(
-            self.y * other.z - self.z * other.y,
-            self.x * other.z - self.z * other.x,
-            self.x * other.y - self.y * other.x
-        )
+        return Vec3(self.y * other.z - self.z * other.y, self.z * other.x - self.x * other.z,
+                    self.x * other.y - self.y * other.x)
 
     @staticmethod
     def from_proto(proto):
@@ -269,7 +269,8 @@ class SE2Pose(object):
         """
         rotation_matrix = self.to_rot_matrix()
         rotated_pos = rotation_matrix.dot((se2pose.x, se2pose.y))
-        return SE2Pose(self.x + rotated_pos[0], self.y + rotated_pos[1], self.angle + se2pose.angle)
+        return SE2Pose(self.x + rotated_pos[0], self.y + rotated_pos[1],
+                       recenter_angle_mod(self.angle + se2pose.angle, 0.0))
 
     def __mul__(self, other):
         """Overrides the '*' symbol to compute the multiplication between two SE(2) poses,
@@ -281,10 +282,10 @@ class SE2Pose(object):
         if isinstance(other, SE2Pose):
             rotation_matrix = self.to_rot_matrix()
             rotated_pos = rotation_matrix.dot((other.x, other.y))
-            return SE2Pose(self.x + rotated_pos[0], self.y + rotated_pos[1], self.angle + other.angle)
+            return SE2Pose(self.x + rotated_pos[0], self.y + rotated_pos[1],
+                           recenter_angle_mod(self.angle + other.angle, 0.0))
         else:
             raise TypeError("Can't multiply types %s and %s." % (type(self), type(other)))
-
 
     def to_rot_matrix(self):
         """Returns the rotation matrix generate from the angle of the current SE(2) Pose."""
@@ -293,7 +294,7 @@ class SE2Pose(object):
         return numpy.array([[c, -s], [s, c]])
 
     def to_matrix(self):
-        '''Returns the 3x3 matrix to transform a 2D point (in generalized coordinates).'''
+        """Returns the 3x3 matrix to transform a 2D point (in generalized coordinates)."""
         c = math.cos(self.angle)
         s = math.sin(self.angle)
         return numpy.array([[c, -s, self.x], [s, c, self.y], [0, 0, 1]])
@@ -326,7 +327,7 @@ class SE2Pose(object):
         # Extract separately to get float type, instead of single-element matrix type.
         x = mat[0, 2]
         y = mat[1, 2]
-        angle = math.acos(mat[0, 0])
+        angle = math.atan2(mat[1, 0], mat[0, 0])
         print(x, y, angle)
         return SE2Pose(x, y, angle)
 
@@ -536,7 +537,6 @@ class SE3Pose(object):
     def __iter__(self):
         return iter([self.x, self.y, self.z, self.rot.w, self.rot.x, self.rot.y, self.rot.z])
 
-
     @staticmethod
     @deprecated(reason='Use from_proto instead.', version='3.1.0')
     def from_obj(tform):
@@ -636,7 +636,7 @@ class SE3Pose(object):
         return (numpy.dot(points, rot.T) + trans)
 
     def to_matrix(self):
-        '''Returns the 4x4 matrix to transform a 3D point (in generalized coordinates).'''
+        """Returns the 4x4 matrix to transform a 3D point (in generalized coordinates)."""
         ret = numpy.eye(4)
         ret[0:3, 0:3] = self.rot.to_matrix()
         ret[0:3, 3] = [self.x, self.y, self.z]
@@ -721,8 +721,7 @@ class SE3Pose(object):
         # For a transform a_T_b, the pose_frame_name represents "frame A". This must be a gravity
         # aligned frame, either "vision", "odom", or "flat_body" to be safely converted from
         # an SE3Pose to an SE2Pose with minimal loss of height information.
-        se2_angle = (self.rot.closest_yaw_only_quaternion()).to_yaw()
-        return SE2Pose(x=self.x, y=self.y, angle=se2_angle)
+        return SE2Pose.flatten(self)
 
     @staticmethod
     def interp(a, b, fraction):
@@ -879,7 +878,7 @@ class Quat(object):
     def to_yaw(self):
         """Computes the Euler angle yaw from the current math_helpers.Quat"""
         yaw_only_quat = self.closest_yaw_only_quaternion()
-        return 2 * math.atan2(yaw_only_quat.z, yaw_only_quat.w)
+        return recenter_angle_mod(2 * math.atan2(yaw_only_quat.z, yaw_only_quat.w), 0.0)
 
     def to_axis_angle(self):
         """Computes the angle and the respective axis from the math_helpers.Quat"""
@@ -887,11 +886,11 @@ class Quat(object):
             return (0.0, [0, 0, 1])
 
         mag = 1.0 - (self.w * self.w)
-        if mag <= 1e-3:
+        if mag <= 1e-12:
             return (0.0, [0, 0, 1])
 
         denom = math.sqrt(mag)
-        if denom < 1e-3:
+        if denom < 1e-12:
             return (0.0, [0, 0, 1])
 
         angle = 2.0 * math.acos(self.w)
@@ -961,7 +960,7 @@ class Quat(object):
         else:
             # If the problem is ill posed (i.e. z-axis of quaternion is [0, 0, -1]), then preserve old
             # behavior and always rotate 180 degrees around the y-axis.
-            return Quat(w=0, x=0, y=1, z=0)
+            return Quat(w=0, x=0, y=1, z=0) * self
 
     @staticmethod
     def slerp(a, b, fraction):
@@ -996,6 +995,60 @@ class Quat(object):
             result = (s0 * v0) + (s1 * v1)
         return Quat(result[0], result[1], result[2], result[3])
 
+    @staticmethod
+    def from_two_vectors(u_in: Vec3, v_in: Vec3):
+        """ Returns a quaternion representing the rotation from u to v."""
+        # Normalizing by max avoids all sorts of underflow and overflow issues when we multiply
+        # terms together, including any issues in calculating the norm itself.
+        max_u = max([math.fabs(u_in[0]), math.fabs(u_in[1]), math.fabs(u_in[2])])
+        max_v = max([math.fabs(v_in[0]), math.fabs(v_in[1]), math.fabs(v_in[2])])
+        if max_u == 0 or max_v == 0:
+            # Undefined; return identity
+            return Quat(1, 0, 0, 0)
+        u = u_in * (1 / max_u)
+        v = v_in * (1 / max_v)
+
+        u_dot_v = u.dot(v)
+        u_dot_u = u.dot(u)
+        v_dot_v = v.dot(v)
+        norm_u_norm_v = math.sqrt(u_dot_u * v_dot_v)
+
+        if u_dot_v < 0:
+            #When this is the case, things get annoying because the |u||v| + u.v (see u_dot_v >= 0
+            #case below) has cancellation; this leads us to a different formula that is sensitive to
+            #the magnitude of c. If the vectors are close to antipodal, the cross product itself can
+            #be ill conditioned. Algebraically, u x (u + v) is equal to u x v, but, the result is
+            #much more likely to be orthogonal to u and v for extreme cases.
+            c = u.cross(u + v)
+            max_c = max([math.fabs(c[0]), math.fabs(c[1]), math.fabs(c[2])])
+            if max_c == 0:
+                # We pick an orthogonal axis, avoiding the smallest one
+                if abs(u[0]) > abs(u[1]):
+                    if abs(u[1]) > abs(u[2]):
+                        q = Quat(0, -u[1], u[0], 0)
+                        return q.normalize()
+                    else:
+                        q = Quat(0, u[2], 0, -u[0])
+                        return q.normalize()
+                elif abs(u[0]) > abs(u[2]):
+                    q = Quat(0, -u[1], u[0], 0)
+                    return q.normalize()
+                else:
+                    q = Quat(0, 0, -u[2], u[1])
+                    return q.normalize()
+            c_scl = (1 / max_c) * c
+            norm2_c_scl = c_scl.dot(c_scl)
+            tmp = (norm_u_norm_v - u_dot_v) * c_scl
+            q = Quat(norm2_c_scl * max_c, tmp[0], tmp[1], tmp[2])
+            return q.normalize()
+        else:
+            c = u.cross(v)
+            q = Quat(norm_u_norm_v + u_dot_v, c[0], c[1], c[2])
+            return q.normalize()
+
+    def conj(self):
+        return Quat(self.w, -self.x, -self.y, -self.z)
+
 
 def pose_to_xyz_yaw(A_tform_B):
     """Gets the x,y,z yaw of B in A from the SE3Pose protobuf message."""
@@ -1014,6 +1067,7 @@ def is_within_threshold(pose_3d, max_translation_meters, max_yaw_degrees):
     return (dist_2d < max_translation_meters) and (angle_deg < max_yaw_degrees)
 
 
+@deprecated(reason='Use recenter_angle_mod or recenter_value_mod instead.', version='3.2.0')
 def recenter_angle(q, lower_limit, upper_limit):
     recenter_range = upper_limit - lower_limit
     while q >= upper_limit:

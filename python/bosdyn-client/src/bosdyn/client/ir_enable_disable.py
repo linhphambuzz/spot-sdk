@@ -1,14 +1,12 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
 """A client for the ir-enable-disable service."""
-from bosdyn.client.common import common_header_errors
-from bosdyn.client.common import BaseClient
-from bosdyn.api import ir_enable_disable_pb2
-from bosdyn.api import ir_enable_disable_service_pb2_grpc
+from bosdyn.api import ir_enable_disable_pb2, ir_enable_disable_service_pb2_grpc
+from bosdyn.client.common import BaseClient, common_header_errors
 
 
 class IREnableDisableServiceClient(BaseClient):

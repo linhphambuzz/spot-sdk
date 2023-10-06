@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -23,20 +23,21 @@ from .estop import EstopClient
 from .estop import is_estopped as pkg_is_estopped
 from .exceptions import Error
 from .lease import LeaseWallet
-from .payload_registration import (PayloadRegistrationClient, PayloadAlreadyExistsError,
-                                   PayloadNotAuthorizedError)
+from .payload_registration import (PayloadAlreadyExistsError, PayloadNotAuthorizedError,
+                                   PayloadRegistrationClient)
 from .power import PowerClient
-from .power import power_on as pkg_power_on
-from .power import power_off as pkg_power_off
-from .power import safe_power_off as pkg_safe_power_off
 from .power import is_powered_on as pkg_is_powered_on
+from .power import power_off as pkg_power_off
+from .power import power_on as pkg_power_on
+from .power import safe_power_off as pkg_safe_power_off
 from .robot_command import RobotCommandClient
 from .robot_id import RobotIdClient
 from .robot_state import RobotStateClient
 from .robot_state import has_arm as pkg_has_arm
-from .time_sync import TimeSyncThread, TimeSyncClient, TimeSyncError
-from .token_manager import TokenManager
+from .time_sync import TimeSyncClient, TimeSyncError, TimeSyncThread
 from .token_cache import TokenCache
+from .token_manager import TokenManager
+
 
 _LOGGER = logging.getLogger(__name__)
 _DEFAULT_SECURE_CHANNEL_PORT = 443
@@ -114,7 +115,9 @@ class Robot(object):
         self.channels_by_authority = {}
         self.authorities_by_name = {}
         self._robot_id = None
+        self._hardware_config = None
         self._has_arm = None
+        self._secure_channel_port = _DEFAULT_SECURE_CHANNEL_PORT
 
 
         # Things usually updated from an Sdk object.
@@ -149,6 +152,10 @@ class Robot(object):
 
     def __del__(self):
         self._shutdown()
+
+    @property
+    def host(self):
+        return self._name
 
     def _get_token_id(self, username):
         return '{}.{}'.format(self.serial_number, username)
@@ -192,7 +199,7 @@ class Robot(object):
         self.client_name = other.client_name
         self.lease_wallet.set_client_name(self.client_name)
 
-    def ensure_client(self, service_name, channel=None, options=[]):
+    def ensure_client(self, service_name, channel=None, options=[], service_endpoint=None):
         """Ensure a Client for a given service.
         Note: If a new service has been registered with the directory service, this may raise
         UnregisteredServiceNameError when trying to connect to it until sync_with_directory() is
@@ -227,13 +234,18 @@ class Robot(object):
         self.logger.debug('Created client for %s', service_name)
 
         if channel is None:
-            channel = self.ensure_channel(service_name, options=options)
+            channel = self.ensure_channel(service_name, options=options,
+                                          service_endpoint=service_endpoint)
 
         client.channel = channel
         client.update_from(self)
         # Track service clients that have been created to avoid duplicate clients
         self.service_clients_by_name[service_name] = client
         return client
+
+    def shutdown(self):
+        for channel_from_auth in self.channels_by_authority.values():
+            channel_from_auth.close()
 
     def get_cached_robot_id(self):
         """Return the RobotId proto for this robot, querying it from the robot if not yet cached.
@@ -246,19 +258,20 @@ class Robot(object):
             self._robot_id = robot_id_client.get_id()
         return self._robot_id
 
-    def _should_send_app_token_on_each_request(self):
-        robot_id = self.get_cached_robot_id()
-        robot_software_version = robot_id.software_release.version
-        # Send app tokens on 1.1.x and below versions of robot software to be backwards
-        # compatible
-        if robot_software_version.major_version <= 1 and robot_software_version.minor_version <= 1:
-            return True
-        # Otherwise, the robot software is recent enough to not require app tokens on every
-        # request. Don't add them to help save data usage.
-        return False
+    def get_cached_hardware_hardware_configuration(self):
+        """Return the HardwareConfiguration proto for this robot, querying it from the robot if not
+        yet cached.
+        
+        Raises:
+            RpcError: There as a problem communicating with the robot.
+        """
+        if not self._hardware_config:
+            client = self.ensure_client(RobotStateClient.default_service_name)
+            self._hardware_config = client.get_robot_hardware_configuration()
+        return self._hardware_config
 
 
-    def ensure_channel(self, service_name, options=[]):
+    def ensure_channel(self, service_name, options=[], service_endpoint=None):
         """Verify the right information exists before calling the ensure_secure_channel
         method.
 
@@ -302,19 +315,14 @@ class Robot(object):
         if 'grpc.max_send_message_length' not in [option[0] for option in options]:
             options.append(('grpc.max_send_message_length', self.max_send_message_length))
 
-        if skip_app_token_check:
-            should_send_app_token = False
-        else:
-            should_send_app_token = self._should_send_app_token_on_each_request()
-
         # Channel doesn't exist, so create it.
-        port = _DEFAULT_SECURE_CHANNEL_PORT
         creds = bosdyn.client.channel.create_secure_channel_creds(
-            self.cert, lambda: (self.app_token, self.user_token), should_send_app_token)
-        channel = bosdyn.client.channel.create_secure_channel(self.address, port, creds, authority,
-                                                              options=options)
-        self.logger.debug('Created channel to %s at port %i with authority %s', self.address, port,
-                          authority)
+            self.cert, lambda: (self.app_token, self.user_token))
+        channel = bosdyn.client.channel.create_secure_channel(self.address,
+                                                              self._secure_channel_port, creds,
+                                                              authority, options=options)
+        self.logger.debug('Created channel to %s at port %i with authority %s', self.address,
+                          self._secure_channel_port, authority)
         self.channels_by_authority[authority] = channel
         return channel
 
@@ -401,8 +409,9 @@ class Robot(object):
             except PayloadNotAuthorizedError:
                 if not printed_warning:
                     printed_warning = True
-                    self.logger.warn('Payload is not authorized. Authentication will block until an'
-                          ' operator authorizes the payload in the Admin Console.')
+                    self.logger.warning(
+                        'Payload is not authorized. Authentication will block until an'
+                        ' operator authorizes the payload in the Admin Console.')
                 pass
             time.sleep(0.1)
         self.update_user_token(user_token)
@@ -431,26 +440,28 @@ class Robot(object):
         id_client = self.ensure_client(id_service_name)
         return id_client.get_id()
 
-    def list_services(self, directory_service_name=DirectoryClient.default_service_name,
-                      directory_service_authority=_bootstrap_service_authorities[
-                          DirectoryClient.default_service_name]):
+    def list_services(self):
         """Get all the available services on the robot."""
-        directory_channel = self.ensure_secure_channel(directory_service_authority)
-        dir_client = self.ensure_client(directory_service_name, directory_channel)
+        dir_client = self.ensure_client(DirectoryClient.default_service_name)
         return dir_client.list()
 
-    def sync_with_directory(self, directory_service_name=DirectoryClient.default_service_name,
-                            directory_service_authority=_bootstrap_service_authorities[
-                                DirectoryClient.default_service_name]):
+    def sync_with_directory(self):
         """Update local state with all available services on the robot.
 
         Returns:
             Dict[string, string]: Mapping of service name to service type
         """
-        remote_services = self.list_services(
-            directory_service_name=directory_service_name,
-            directory_service_authority=directory_service_authority)
-        for service in remote_services:
+        remote_services = self.list_services()
+        return self.sync_with_services_list(remote_services)
+
+    def sync_with_services_list(self, services_list):
+        """Alternate version of sync_with_directory() that takes the list of services
+        directly and does not perform any rpcs.
+
+        Returns:
+            Dict[string, string]: Mapping of service name to service type
+        """
+        for service in services_list:
             self.authorities_by_name[service.name] = service.authority
             self.service_type_by_name[service.name] = service.type
         return self.service_type_by_name
@@ -481,7 +492,7 @@ class Robot(object):
         """Start time sync thread if needed.
 
         Args:
-            val (float): The interval (in seconds) that the time-sync estimate should be updated.
+            time_sync_interval_sec (float): The interval (in seconds) that the time-sync estimate should be updated.
         """
         if not self._time_sync_thread:
             self._time_sync_thread = TimeSyncThread(
@@ -672,5 +683,16 @@ class Robot(object):
         state_client = self.ensure_client(RobotStateClient.default_service_name)
         self._has_arm = pkg_has_arm(state_client, timeout=timeout)
         return self._has_arm
+
+    def update_secure_channel_port(self, secure_channel_port):
+        """Update the port used for creating secure channels, instead of using the default 443.
+
+        Calling this method does not change existing channels. It only affects secure channels
+        created after this method is called.
+
+        Args:
+            secure_channel_port: New port to use for creating secure channels.
+        """
+        self._secure_channel_port = secure_channel_port
 
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -34,14 +34,14 @@ def arm_surface_contact(config):
     bosdyn.client.util.authenticate(robot)
     robot.time_sync.wait_for_sync()
 
-    assert robot.has_arm(), "Robot requires an arm to run this example."
+    assert robot.has_arm(), 'Robot requires an arm to run this example.'
 
     arm_surface_contact_client = robot.ensure_client(ArmSurfaceContactClient.default_service_name)
 
     # Verify the robot is not estopped and that an external application has registered and holds
     # an estop endpoint.
-    assert not robot.is_estopped(), "Robot is estopped. Please use an external E-Stop client, " \
-                                    "such as the estop SDK example, to configure E-Stop."
+    assert not robot.is_estopped(), 'Robot is estopped. Please use an external E-Stop client, ' \
+                                    'such as the estop SDK example, to configure E-Stop.'
 
     robot_state_client = robot.ensure_client(RobotStateClient.default_service_name)
 
@@ -50,27 +50,27 @@ def arm_surface_contact(config):
         # Now, we are ready to power on the robot. This call will block until the power
         # is on. Commands would fail if this did not happen. We can also check that the robot is
         # powered at any point.
-        robot.logger.info("Powering on robot... This may take a several seconds.")
+        robot.logger.info('Powering on robot... This may take a several seconds.')
         robot.power_on(timeout_sec=20)
-        assert robot.is_powered_on(), "Robot power on failed."
-        robot.logger.info("Robot powered on.")
+        assert robot.is_powered_on(), 'Robot power on failed.'
+        robot.logger.info('Robot powered on.')
 
         # Tell the robot to stand up. The command service is used to issue commands to a robot.
         # The set of valid commands for a robot depends on hardware configuration. See
-        # SpotCommandHelper for more detailed examples on command building. The robot
+        # RobotCommandBuilder for more detailed examples on command building. The robot
         # command service requires timesync between the robot and the client.
-        robot.logger.info("Commanding robot to stand...")
+        robot.logger.info('Commanding robot to stand...')
         command_client = robot.ensure_client(RobotCommandClient.default_service_name)
         blocking_stand(command_client, timeout_sec=10)
-        robot.logger.info("Robot standing.")
+        robot.logger.info('Robot standing.')
 
-        # Unstow the arm
+        # Unstow the arm.
         unstow = RobotCommandBuilder.arm_ready_command()
 
-        # Issue the command via the RobotCommandClient
+        # Issue the command via the RobotCommandClient.
         unstow_command_id = command_client.robot_command(unstow)
 
-        robot.logger.info("Unstow command issued.")
+        robot.logger.info('Unstow command issued.')
         block_until_arm_arrives(command_client, unstow_command_id, 3.0)
 
         # ----------
@@ -99,30 +99,28 @@ def arm_surface_contact(config):
         qz = 0
         body_Q_hand = geometry_pb2.Quaternion(w=qw, x=qx, y=qy, z=qz)
 
-        # Build a position trajectory
-        body_T_hand1 = geometry_pb2.SE3Pose(position=hand_vec3_start_rt_body,
-                                            rotation=body_Q_hand)
-        body_T_hand2 = geometry_pb2.SE3Pose(position=hand_vec3_end_rt_body,
-                                            rotation=body_Q_hand)
+        # Build a position trajectory.
+        body_T_hand1 = geometry_pb2.SE3Pose(position=hand_vec3_start_rt_body, rotation=body_Q_hand)
+        body_T_hand2 = geometry_pb2.SE3Pose(position=hand_vec3_end_rt_body, rotation=body_Q_hand)
 
         robot_state = robot_state_client.get_robot_state()
         odom_T_flat_body = get_a_tform_b(robot_state.kinematic_state.transforms_snapshot,
                                          ODOM_FRAME_NAME, GRAV_ALIGNED_BODY_FRAME_NAME)
-        odom_T_hand1 = odom_T_flat_body * math_helpers.SE3Pose.from_obj(body_T_hand1)
-        odom_T_hand2 = odom_T_flat_body * math_helpers.SE3Pose.from_obj(body_T_hand2)
+        odom_T_hand1 = odom_T_flat_body * math_helpers.SE3Pose.from_proto(body_T_hand1)
+        odom_T_hand2 = odom_T_flat_body * math_helpers.SE3Pose.from_proto(body_T_hand2)
 
         # Trajectory length
         trajectory_time = 5.0  # in seconds
         time_since_reference = seconds_to_duration(trajectory_time)
 
-        traj_point1 = trajectory_pb2.SE3TrajectoryPoint(
-            pose=odom_T_hand1.to_proto(), time_since_reference=seconds_to_duration(0))
-        traj_point2 = trajectory_pb2.SE3TrajectoryPoint(
-            pose=odom_T_hand2.to_proto(), time_since_reference=time_since_reference)
+        traj_point1 = trajectory_pb2.SE3TrajectoryPoint(pose=odom_T_hand1.to_proto(),
+                                                        time_since_reference=seconds_to_duration(0))
+        traj_point2 = trajectory_pb2.SE3TrajectoryPoint(pose=odom_T_hand2.to_proto(),
+                                                        time_since_reference=time_since_reference)
 
         hand_traj = trajectory_pb2.SE3Trajectory(points=[traj_point1, traj_point2])
 
-        # Open the gripper
+        # Close the gripper.
         gripper_cmd_packed = RobotCommandBuilder.claw_gripper_open_fraction_command(0)
         gripper_command = gripper_cmd_packed.synchronized_command.gripper_command.claw_gripper_command
 
@@ -133,15 +131,14 @@ def arm_surface_contact(config):
             x_axis=arm_surface_contact_pb2.ArmSurfaceContact.Request.AXIS_MODE_POSITION,
             y_axis=arm_surface_contact_pb2.ArmSurfaceContact.Request.AXIS_MODE_POSITION,
             z_axis=arm_surface_contact_pb2.ArmSurfaceContact.Request.AXIS_MODE_FORCE,
-            z_admittance=arm_surface_contact_pb2.ArmSurfaceContact.Request.
-            ADMITTANCE_SETTING_LOOSE,
+            z_admittance=arm_surface_contact_pb2.ArmSurfaceContact.Request.ADMITTANCE_SETTING_LOOSE,
             # Enable the cross term so that if the arm gets stuck in a rut, it will retract
             # upwards slightly, preventing excessive lateral forces.
             xy_to_z_cross_term_admittance=arm_surface_contact_pb2.ArmSurfaceContact.Request.
             ADMITTANCE_SETTING_VERY_STIFF,
             gripper_command=gripper_command)
 
-        # Enable walking
+        # Enable walking.
         cmd.is_robot_following_hand = True
 
         # A bias force (in this case, leaning forward) can help improve stability.
@@ -150,7 +147,7 @@ def arm_surface_contact(config):
 
         proto = arm_surface_contact_service_pb2.ArmSurfaceContactCommand(request=cmd)
 
-        # Send the request
+        # Send the request.
         robot.logger.info('Running arm surface contact...')
         arm_surface_contact_client.arm_surface_contact_command(proto)
 
@@ -161,8 +158,8 @@ def arm_surface_contact(config):
         # Power the robot off. By specifying "cut_immediately=False", a safe power off command
         # is issued to the robot. This will attempt to sit the robot before powering off.
         robot.power_off(cut_immediately=False, timeout_sec=20)
-        assert not robot.is_powered_on(), "Robot power off failed."
-        robot.logger.info("Robot safely powered off.")
+        assert not robot.is_powered_on(), 'Robot power off failed.'
+        robot.logger.info('Robot safely powered off.')
 
 
 def main(argv):
@@ -175,7 +172,7 @@ def main(argv):
         return True
     except Exception as exc:  # pylint: disable=broad-except
         logger = bosdyn.client.util.get_logger()
-        logger.exception("Threw an exception")
+        logger.exception('Threw an exception')
         return False
 
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -7,21 +7,20 @@
 """
 Example code for using the payload service API
 """
-from __future__ import print_function
 import argparse
-import sys
-import logging
 import io
+import logging
 import struct
+import sys
 import time
-
-import bosdyn.client
-from bosdyn.client.payload import PayloadClient
-from bosdyn.client.payload_registration import PayloadRegistrationClient, PayloadRegistrationKeepAlive
-import bosdyn.client.util
 
 import bosdyn.api.payload_pb2 as payload_protos
 import bosdyn.api.robot_id_pb2 as robot_id_protos
+import bosdyn.client
+import bosdyn.client.util
+from bosdyn.client.payload import PayloadClient
+from bosdyn.client.payload_registration import (PayloadRegistrationClient,
+                                                PayloadRegistrationKeepAlive)
 
 LOGGER = logging.getLogger()
 
@@ -49,7 +48,7 @@ def payload_spot(config):
     payload_secret = 'secret'
     payload.name = 'Client Registered Payload Ex #1'
     payload.description = 'This payload was created and registered by the payloads.py client example.'
-    payload.label_prefix.append("test_payload")
+    payload.label_prefix.append('test_payload')
     payload.is_authorized = False
     payload.is_enabled = False
     payload.is_noncompute_payload = False
@@ -57,7 +56,7 @@ def payload_spot(config):
     payload.version.minor_version = 1
     payload.version.patch_level = 1
     # note: this field is not required, but highly recommended
-    payload.mount_frame_name = payload_protos.MOUNT_FRAME_GRIPPER_PAYLOAD
+    payload.mount_frame_name = payload_protos.MOUNT_FRAME_BODY_PAYLOAD
 
     # Register the payload
     payload_registration_client.register_payload(payload, payload_secret)
@@ -85,7 +84,7 @@ def payload_spot(config):
     payload_secret = 'secret'
     payload.name = 'Client Registered Payload Ex #2'
     payload.description = 'This payload was created and registered by the payloads.py using a PayloadRegistrationKeepAlive.'
-    payload.label_prefix.append("test_payload")
+    payload.label_prefix.append('test_payload')
     payload.is_authorized = False
     payload.is_enabled = False
     payload.is_noncompute_payload = False
@@ -93,7 +92,7 @@ def payload_spot(config):
     payload.version.minor_version = 2
     payload.version.patch_level = 1
     # note: this field is not required, but highly recommended
-    payload.mount_frame_name = payload_protos.MOUNT_FRAME_GRIPPER_PAYLOAD
+    payload.mount_frame_name = payload_protos.MOUNT_FRAME_BODY_PAYLOAD
 
     # Create and start the keep alive
     keep_alive = PayloadRegistrationKeepAlive(payload_registration_client, payload, payload_secret)

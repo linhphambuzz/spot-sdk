@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 
 Downloading, reproducing, distributing or otherwise using the SDK Software
 is subject to the terms and conditions of the Boston Dynamics Software
@@ -31,7 +31,7 @@ The Python client library is supported on the following platforms:
   * Windows 10
   * MacOS 10.14 (Mojave and Catalina)
 
-Python 3.6 and Python 3.7 are supported. Note that Python 3.8 is not supported at this point.
+Python 3.6, Python 3.7 and Python 3.8 are supported.
 
 Python 2.7 is _not_ supported, since the [Python 2 End-Of-Life](https://www.python.org/dev/peps/pep-0373/) happened at the start of 2020.
 

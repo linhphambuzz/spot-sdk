@@ -1,5 +1,5 @@
 <!--
-Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 
 Downloading, reproducing, distributing or otherwise using the SDK Software
 is subject to the terms and conditions of the Boston Dynamics Software
@@ -12,13 +12,14 @@ SpotCAM Client code and interfaces for the Boston Dynamics robot API.
 
 ## Contents
 
-* [Audio](audio)
-* [Compositor](compositor)
-* [Health](health)
-* [Lighting](lighting)
-* [Media Log](media_log)
-* [Network](network)
-* [Power](power)
-* [PTZ](ptz)
-* [Stream Quality](streamquality)
-* [Version](version)
+- [Audio](audio)
+- [Compositor](compositor)
+- [Health](health)
+- [Lighting](lighting)
+- [Lights Helper](lights_helper)
+- [Media Log](media_log)
+- [Network](network)
+- [Power](power)
+- [PTZ](ptz)
+- [Stream Quality](streamquality)
+- [Version](version)

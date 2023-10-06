@@ -1,20 +1,19 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
 """For clients to use the image service."""
-import os
-import numpy as np
 import collections
-from bosdyn.client.common import BaseClient
-from bosdyn.client.common import (error_factory, error_pair, common_header_errors,
-                                  handle_common_header_errors)
-from bosdyn.client.exceptions import ResponseError, UnsetStatusError
+import os
 
-from bosdyn.api import image_pb2
-from bosdyn.api import image_service_pb2_grpc
+import numpy as np
+
+from bosdyn.api import image_pb2, image_service_pb2_grpc
+from bosdyn.client.common import (BaseClient, common_header_errors, custom_params_error,
+                                  error_factory, error_pair, handle_common_header_errors)
+from bosdyn.client.exceptions import ResponseError, UnsetStatusError
 
 
 class ImageResponseError(ResponseError):
@@ -69,10 +68,16 @@ _STATUS_TO_ERROR.update({
 def _error_from_response(response):
     """Return a custom exception based on the first invalid image response, None if no error."""
     for image_response in response.image_responses:
+        result = custom_params_error(image_response, total_response=response)
+        if result is not None:
+            return result
+
         result = error_factory(response, image_response.status,
                                status_to_string=image_pb2.ImageResponse.Status.Name,
                                status_to_error=_STATUS_TO_ERROR)
         if result is not None:
+            # The exception is using the image_response.  Replace it with the full response.
+            result.response = response
             return result
     return None
 
@@ -96,13 +101,13 @@ class ImageClient(BaseClient):
         """
         req = self._get_list_image_source_request()
         return self.call(self._stub.ListImageSources, req, _list_image_sources_value,
-                         common_header_errors, **kwargs)
+                         common_header_errors, copy_request=False, **kwargs)
 
     def list_image_sources_async(self, **kwargs):
         """Async version of list_image_sources()"""
         req = self._get_list_image_source_request()
         return self.call_async(self._stub.ListImageSources, req, _list_image_sources_value,
-                               common_header_errors, **kwargs)
+                               common_header_errors, copy_request=False, **kwargs)
 
     def get_image_from_sources(self, image_sources, **kwargs):
         """Obtain images from sources using default parameters.
@@ -145,13 +150,14 @@ class ImageClient(BaseClient):
             ImageDataError: Problem with the image data. Only ImageSource is filled
         """
         req = self._get_image_request(image_requests)
-        return self.call(self._stub.GetImage, req, _get_image_value, _error_from_response, **kwargs)
+        return self.call(self._stub.GetImage, req, _get_image_value, _error_from_response,
+                         copy_request=False, **kwargs)
 
     def get_image_async(self, image_requests, **kwargs):
         """Async version of get_image()"""
         req = self._get_image_request(image_requests)
         return self.call_async(self._stub.GetImage, req, _get_image_value, _error_from_response,
-                               **kwargs)
+                               copy_request=False, **kwargs)
 
     @staticmethod
     def _get_image_request(image_requests):
@@ -408,7 +414,6 @@ def depth_image_to_pointcloud(image_response, min_dist=0, max_dist=1000):
         image_response (image_pb2.ImageResponse): An ImageResponse containing a depth image.
         min_dist (double): All points in the returned point cloud will be greater than min_dist from the image plane [meters].
         max_dist (double): All points in the returned point cloud will be less than max_dist from the image plane [meters].
-        depth (double): The depth from the camera to the point of interest.
 
     Returns:
         A numpy stack of (x,y,z) values representing depth image as a point cloud expressed in the sensor frame.

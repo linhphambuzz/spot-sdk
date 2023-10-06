@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -17,8 +17,8 @@ python3 ricoh_client_mode.py --theta-ssid THETAYL00196843 --wifi-ssid WIFI_SSID 
 
 """
 
-import sys
 import argparse
+import sys
 
 from ricoh_theta import Theta
 

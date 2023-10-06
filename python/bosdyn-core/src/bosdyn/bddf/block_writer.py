@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -6,13 +6,13 @@
 
 """BlockWriter writes basic data structures in the bddf file."""
 
-from hashlib import sha1
 import struct
+from hashlib import sha1
 
 import bosdyn.api.bddf_pb2 as bddf
 
-from .common import (BLOCK_HEADER_SIZE_MASK, DataFormatError, DATA_BLOCK_TYPE, END_BLOCK_TYPE,
-                     END_MAGIC, DESCRIPTOR_BLOCK_TYPE, MAGIC, SHA1_DIGEST_NBYTES)
+from .common import (BLOCK_HEADER_SIZE_MASK, DATA_BLOCK_TYPE, DESCRIPTOR_BLOCK_TYPE, END_BLOCK_TYPE,
+                     END_MAGIC, MAGIC, SHA1_DIGEST_NBYTES, DataFormatError)
 
 
 class BlockWriter:

@@ -1,4 +1,4 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
@@ -6,13 +6,13 @@
 
 """Test the client to the auto_return service."""
 import concurrent
+
 import grpc
 import pytest
 
-from bosdyn.api.auto_return import auto_return_pb2
-from bosdyn.api.auto_return import auto_return_service_pb2_grpc
-
 import bosdyn.client.auto_return
+from bosdyn.api.auto_return import auto_return_pb2, auto_return_service_pb2_grpc
+
 from . import helpers
 
 

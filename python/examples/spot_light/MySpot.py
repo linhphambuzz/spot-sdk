@@ -1,20 +1,20 @@
-# Copyright (c) 2022 Boston Dynamics, Inc.  All rights reserved.
+# Copyright (c) 2023 Boston Dynamics, Inc.  All rights reserved.
 #
 # Downloading, reproducing, distributing or otherwise using the SDK Software
 # is subject to the terms and conditions of the Boston Dynamics Software
 # Development Kit License (20191101-BDSDK-SL).
 
 import io
+
 import cv2
 import numpy
 
 import bosdyn.client
 import bosdyn.client.lease
 import bosdyn.client.util
-
-from bosdyn.client.image import ImageClient
-from bosdyn.client.robot_command import RobotCommandClient, RobotCommandBuilder, blocking_stand
 from bosdyn import geometry
+from bosdyn.client.image import ImageClient
+from bosdyn.client.robot_command import RobotCommandBuilder, RobotCommandClient, blocking_stand
 
 
 class MySpot(object):
@@ -132,9 +132,9 @@ class MySpot(object):
         self._robot.time_sync.wait_for_sync()
 
         # Verify the robot is not estopped
-        assert not self._robot.is_estopped(), "Robot is estopped. " \
-                                              "Please use an external E-Stop client, " \
-                                              "such as the estop SDK example, to configure E-Stop."
+        assert not self._robot.is_estopped(), 'Robot is estopped. ' \
+                                              'Please use an external E-Stop client, ' \
+                                              'such as the estop SDK example, to configure E-Stop.'
 
         # Acquire a lease to indicate that we want to control the robot
         if self._lease_client is None:
